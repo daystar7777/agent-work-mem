@@ -1,0 +1,66 @@
+# Project Overview
+
+> Onboarding for new LLMs joining this project. Read this AFTER
+> AIMemory/INDEX.md (which tells you what files exist) and BEFORE
+> AIMemory/work.log tail (which tells you what's happening right now).
+
+## What is this project?
+
+A flashcard learning app for spaced repetition (Leitner + Ebbinghaus model).
+iOS/Android via Expo + React Native. Korean UI. JLPT N5 vocabulary bundled
+by default; the schema supports user-authored decks for future expansion.
+
+## Tech stack
+
+- Expo SDK 54 + React Native + TypeScript
+- expo-sqlite for local persistence (schema v5)
+- Zustand for app state (sessionStore, settingsStore)
+- expo-notifications for review reminders + quiet hours
+- Jest for unit tests; tsc + expo lint for static checks
+
+## Key decisions locked in
+
+- 2026-03-12 (claude-opus-4-5) — SRS state-transition strategy: Option C
+  (5 levels: 0=fail, 1=daily, 2=weekly, 3=monthly, 4=mastered). Rationale:
+  matches Ebbinghaus + Leitner intuition; level-up immediate on pass,
+  level-down to 0 on fail.
+- 2026-03-18 (gpt-5-codex review) — Step 3 quiz commits with
+  `reviewContextForLevel(level)` not always `'step2'`. Critical P0 fix.
+- 2026-04-08 (claude-opus-4-5) — Free Apple Personal Team build path:
+  cleared `aps-environment` entitlement, set
+  `ENABLE_USER_SCRIPT_SANDBOXING = NO` to avoid RN script issues.
+- 2026-04-22 (gemini-2-5-pro proposal, claude-opus-4-5 accept) —
+  Memory-tracking dashboard MVP: forgetting curve + at-risk Top 8 +
+  recall-by-level calibration. Phase 4 ships.
+- 2026-04-26 (gpt-5-codex review, claude-opus-4-5 fix) — TOCTOU race in
+  refresh-rotation closed via SELECT FOR UPDATE.
+
+## Major work completed
+
+- 2026-03-08 → 03-15: Phase 1 (project setup + Sisyphus harness)
+- 2026-03-16 → 03-25: Phase 2 (DB schema + SRS engine)
+- 2026-03-26 → 04-05: Phase 3 (UI: Home / Deck Detail / Step 1-2-Done)
+- 2026-04-06 → 04-12: Phase 4 (notifications + quiet hours)
+- 2026-04-13 → 04-21: Phase 5 (content + design v1.2 + iPhone build)
+- 2026-04-22 → 04-26: Phase 6 (correctness fixes + telemetry + memory dashboard)
+
+## Active concerns
+
+- AT_RISK_MAX_CANDIDATES = 5000 is a soft cap. Trigger for revisit:
+  single deck reaches >5K cards.
+- Full calibration curve (predicted-bucket × actual pass rate) deferred
+  until enough `review_events` accumulate (~1000+ events needed).
+- `response_ms` measurement in MultipleChoiceQuiz still unimplemented
+  (all events emit null).
+- Apple Developer Program enrollment pending — TestFlight + push
+  notifications blocked until then.
+
+## Where to look
+
+- Recent activity → AIMemory/work.log
+- Topic-based history → AIMemory/INDEX.md (Topic index section)
+- Long-term history → AIMemory/cold/digest-*.md
+
+---
+Last rebuild: 2026-04-26 22:30 by claude-opus-4-5
+Source: cold/digest-2026-03.md + archive/work-2026-04-*.log + open handoffs

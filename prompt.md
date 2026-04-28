@@ -68,13 +68,14 @@ Run a probe appropriate to your shell:
 
 You need this for Task 7 (Obsidian).
 
-### Task 3 — Create the AIMemory directory
+### Task 3 — Create the AIMemory directory tree
 
-```
-mkdir -p AIMemory
+```bash
+mkdir -p AIMemory/archive AIMemory/cold
 ```
 
-at the project root.
+at the project root. `archive/` holds rotated warm logs; `cold/` holds
+period digests (see §A.7 for the tiering rules).
 
 ### Task 4 — Write `AIMemory/PROTOCOL.md`
 
@@ -84,34 +85,49 @@ Content in **§A** below — write verbatim.
 
 Content in **§B** below — write verbatim.
 
-### Task 6 — Append the first event
+### Task 6 — Write `AIMemory/INDEX.md` and `AIMemory/PROJECT_OVERVIEW.md`
+
+These are the tiering-system entry points. They should exist as stubs
+from day 1 so the very next session reads them in the right order.
+
+- INDEX.md content in **§F** below
+- PROJECT_OVERVIEW.md content in **§G** below
+
+Both start mostly empty; they grow as the project ages.
+
+### Task 7 — Append the first event
 
 Append a `PROJECT_BOOTSTRAPPED` entry to `AIMemory/work.log` using the
 template in **§C**. Include capabilities from Task 1 using the
 vendor-neutral vocabulary.
 
-### Task 7 — Obsidian integration (optional, recommended)
+### Task 8 — Obsidian integration (optional, recommended)
 
 Follow **§E** below. Detect → ask user → install (with consent) → instruct
 "Open folder as vault: AIMemory/".
 
-### Task 8 — Behavior commitment
+### Task 9 — Behavior commitment
 
 From this turn forward, follow the protocol on EVERY user turn. **§D**
 is the non-negotiable summary.
 
-### Task 9 — Confirm
+### Task 10 — Confirm
 
 Reply with:
 - Model-id, vendor, harness, capabilities (generic tags)
-- Files you created (absolute paths)
+- Files you created (absolute paths) — should include INDEX.md, PROTOCOL.md,
+  PROJECT_OVERVIEW.md, work.log
 - Obsidian outcome (already installed / installed now / declined)
 - One sentence: "I will follow AIMemory/PROTOCOL.md from this turn forward."
 
 ### If files already exist (re-bootstrap)
 
 DO NOT overwrite. Read them, append a `RE_ENGAGED` event to `work.log`
-with your current capabilities, and confirm.
+with your current capabilities, and confirm. If `INDEX.md` /
+`PROJECT_OVERVIEW.md` are missing (older bootstrap, before tiering),
+the user should run the upgrade prompt
+(<https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/upgrade.md>)
+instead — point them at it.
 
 ---
 
@@ -154,7 +170,7 @@ following events:
 - **NOTE** — assumptions, uncertainties, open questions for next agent
 - **HANDOFF / HANDOFF_RECEIVED / HANDOFF_CLOSED** — see AICP below
 - **PROJECT_BOOTSTRAPPED / RE_ENGAGED** — session start markers; include
-  the agent's capabilities (see §A.8 below)
+  the agent's capabilities (see §A.9 below)
 
 Event format:
 
@@ -320,7 +336,276 @@ time you see a conflict file.
 
 ---
 
-## 7. Why these rules exist
+
+### 7. Tiered storage — keep context small
+
+After a few days of multi-agent use, `work.log` + handoff files + scratch
+notes accumulate. Reading the whole pile on every session burns LLM
+context for no benefit. Tiered storage separates recent-and-relevant
+(always read) from older-and-rarely-needed (lazy-load).
+
+#### 7.1 The three tiers
+
+- **Hot** — `AIMemory/work.log`. The N most recent events. Every new
+  session reads this in full.
+- **Warm** — `AIMemory/archive/work-<YYYY-MM-DD>.log`. Older events
+  grouped by UTC date. Read only when the user's request reaches into
+  history older than the hot tier covers.
+- **Cold** — `AIMemory/cold/digest-<period>.md`. Multi-week or
+  multi-month summaries. Fetch only on explicit need.
+
+#### 7.2 INDEX.md — read this FIRST every session
+
+`AIMemory/INDEX.md` is the directory's table of contents AND search index.
+It's small and cheap to load. It tells you:
+- which warm archives exist and what each contains (so you skip irrelevant ones)
+- a flat **topic index** mapping keywords to the files that cover them
+  (so you can `grep` for a topic instead of reading anything)
+
+Required sections of INDEX.md:
+
+```markdown
+# AIMemory Index
+
+## Configuration
+- HOT_RETENTION_EVENTS: 50
+
+## Hot — read every session
+- work.log — last N events, append-only
+
+## Warm — read only when needed
+| File | Date range | Events | Topics | Summary |
+|------|------------|--------|--------|---------|
+| archive/work-2026-04-26.log | 2026-04-26 | 87 | auth, jwt, refresh-tokens, toctou-race | JWT auth implementation; TOCTOU race in refresh-rotation found by gpt-5-codex review, fixed via SELECT FOR UPDATE. |
+| archive/work-2026-04-25.log | 2026-04-25 | 23 | bootstrap, obsidian, project-setup | Initial project bootstrap, Obsidian vault opened. |
+
+## Cold — fetch only on explicit need
+| File | Period covered | Topics | Summary |
+|------|----------------|--------|---------|
+| cold/digest-2026-03.md | 2026-03 | foo, bar, baz | One-paragraph summary for the whole month. |
+
+## Topic index — grep me
+auth          → archive/work-2026-04-26.log
+jwt           → archive/work-2026-04-26.log
+refresh-tokens → archive/work-2026-04-26.log
+toctou-race   → archive/work-2026-04-26.log
+bootstrap     → archive/work-2026-04-25.log
+obsidian      → archive/work-2026-04-25.log
+
+## Active handoffs (open AICP threads)
+- handoff_perf.gemini-2-5-pro.md — to claude-opus, NORMAL
+
+## Other notable files
+- PROJECT_OVERVIEW.md — onboarding primer (read after INDEX.md)
+- session-checkpoint-2026-04-26.claude-opus-4-7.md — major checkpoint
+
+---
+Last update: 2026-04-26 22:30 by claude-opus-4-7
+```
+
+How agents use the topic index:
+
+```bash
+# user asks: "did we ever discuss auth?"
+grep -i "auth" AIMemory/INDEX.md
+# → archive/work-2026-04-26.log appears in the topic index
+# load only that file; skip the rest.
+```
+
+**Maintaining topics**: when an agent rotates events to an archive, it
+extracts 3–7 topic keywords (kebab-case, lowercase) summarizing what
+the archived events covered, and updates both:
+1. The Warm table's `Topics` column for that archive
+2. The flat Topic index (one line per topic → file mapping)
+
+If a new archive covers a topic that already exists, append the new
+file to the existing topic line:
+
+```
+auth → archive/work-2026-04-26.log, archive/work-2026-05-12.log
+```
+
+Don't be precious about topic granularity — over-tagging is fine,
+under-tagging hurts findability.
+
+#### 7.3 Configuration (user-tunable)
+
+The user controls the rotation threshold via `HOT_RETENTION_EVENTS`
+in INDEX.md. Recommended defaults:
+
+| Project type                       | HOT_RETENTION_EVENTS |
+|------------------------------------|----------------------|
+| Active multi-agent (≥3 agents/day) | 30                   |
+| Standard (default)                 | 50                   |
+| Long-running solo                  | 100                  |
+
+If unset, agents default to 50.
+
+#### 7.4 When to rotate
+
+At WORK_START, count current events. If over threshold × 1.5, rotate.
+The 1.5× hysteresis avoids thrashing on every single event.
+
+```bash
+EVENT_COUNT=$(grep -c '^### ' AIMemory/work.log)
+THRESHOLD=$(grep '^- HOT_RETENTION_EVENTS:' AIMemory/INDEX.md 2>/dev/null \
+  | awk -F: '{print $2}' | tr -d ' ')
+[ -z "$THRESHOLD" ] && THRESHOLD=50
+
+if [ "$EVENT_COUNT" -gt $((THRESHOLD * 3 / 2)) ]; then
+  # rotate (see §7.5)
+fi
+```
+
+#### 7.5 Rotation algorithm
+
+This is the one place where the protocol modifies (not appends to)
+`work.log`. Treat it as a single atomic maintenance operation.
+
+1. **Acquire lock** (use flock if available; else verify no orphan
+   `WORK_START` from another agent):
+   ```bash
+   exec 9>AIMemory/.rotation.lock
+   flock -n 9 || { echo "rotation in progress, skipping"; exit 0; }
+   ```
+2. Read all events from `work.log`.
+3. Keep the most recent THRESHOLD events. The rest get archived.
+4. For each archived event, append to
+   `AIMemory/archive/work-<UTC-date-from-event-timestamp>.log`. Group
+   by date.
+5. **Atomically replace** `work.log` with the kept events:
+   ```bash
+   # write kept-events to a temp file, then rename:
+   mv AIMemory/work.log.new AIMemory/work.log
+   ```
+6. **Update INDEX.md**: add or refresh the row in the warm table for
+   each archive file you wrote to (event count, date range, one-line
+   summary).
+7. Append a NOTE event in the (now small) `work.log`:
+   ```
+   ### YYYY-MM-DD HH:MM | <model-id> | NOTE
+   Rotated <N> events to AIMemory/archive/. Hot kept at <THRESHOLD>.
+   ```
+8. Release lock.
+
+If you cannot rotate safely (concurrent agent active, no flock), append
+a NOTE flagging "rotation needed" and let a future single-agent
+session do it. Don't half-rotate.
+
+#### 7.6 Cold digesting + PROJECT_OVERVIEW maintenance
+
+Cold digests are heavy — they read and summarize many archive files.
+Don't do this automatically. Trigger only on:
+- Explicit user request ("digest last month into cold")
+- Archive directory > 1 year old or > 100 files
+
+Cold digest naming: `AIMemory/cold/digest-<YYYY-MM>.md` (monthly) or
+`AIMemory/cold/digest-<YYYY-Wnn>.md` (weekly).
+
+Each cold digest must contain:
+
+```markdown
+# Cold digest — <period>
+
+**Period covered**: YYYY-MM-DD → YYYY-MM-DD
+**Source archives**: archive/work-YYYY-MM-DD.log, ...
+**Distilled by**: <model-id> on YYYY-MM-DD
+
+## What happened (chronological)
+<3–10 bullets, each one decision or major work item with date>
+
+## Decisions locked in
+<list of decisions that future sessions should NOT revisit>
+
+## Open questions / unresolved
+<anything still hanging from this period>
+
+## Topics
+<comma-separated keywords for INDEX.md topic index>
+```
+
+**After writing a cold digest, ALWAYS update:**
+1. INDEX.md — add the digest to the Cold table; update Topic index
+2. **PROJECT_OVERVIEW.md** — re-merge new "Decisions locked in" + major
+   work into the running overview (see §7.8)
+
+You may compress or delete the underlying archives that the digest
+covers — but ONLY with explicit user approval. Default: keep them
+("cold" doesn't mean deleted).
+
+#### 7.7 Reading discipline (every new session)
+
+Read in this order, stopping when you have enough context:
+
+1. **INDEX.md** (always — small, free; tells you what exists + topic search)
+2. **PROJECT_OVERVIEW.md** if it exists (always — small project primer)
+3. **work.log tail** ~50 lines (always)
+4. Active handoffs listed in INDEX (if relevant to current request)
+5. Specific warm archive — only after grepping INDEX's Topic index;
+   load the matched file(s) only
+6. Cold digest — only on explicit user request
+
+Lazy-load. Don't pre-fetch warm/cold "just in case". Use the Topic
+index in INDEX.md to find what's relevant before opening anything.
+
+#### 7.8 PROJECT_OVERVIEW.md — onboarding primer for new sessions/LLMs
+
+`AIMemory/PROJECT_OVERVIEW.md` is a 1-screen briefing for any LLM
+joining the project (whether a brand-new session or a different vendor's
+agent stepping in). It answers: "what is this project, what's been
+decided, what's still in motion?"
+
+It is **derived** from `work.log` + cold digests, not authored from
+scratch. It is rebuilt/extended whenever a cold digest is created.
+
+Required structure:
+
+```markdown
+# Project Overview
+
+> Onboarding for new LLMs joining this project. Read this AFTER
+> AIMemory/INDEX.md (which tells you what files exist) and BEFORE
+> AIMemory/work.log tail (which tells you what's happening right now).
+
+## What is this project?
+<2–4 sentences. What it does, who uses it, why it exists.>
+
+## Tech stack
+- <bullets of major techs>
+
+## Key decisions locked in
+- <decision 1> (YYYY-MM-DD, <model-id>) — <one-line rationale>
+- <decision 2> ...
+
+## Major work completed
+- <YYYY-MM-DD>: <what shipped or finished>
+- ...
+
+## Active concerns
+- <what's currently being worked on or blocked>
+
+## Where to look
+- Recent activity → AIMemory/work.log
+- Topic-based history → AIMemory/INDEX.md (Topic index section)
+- Long-term history → AIMemory/cold/digest-*.md
+
+---
+Last rebuild: YYYY-MM-DD by <model-id>
+Source: cold/digest-* + open work.log + active handoffs
+```
+
+**When to rebuild**:
+- After writing any cold digest (mandatory — the digest's "Decisions
+  locked in" + "What happened" must propagate up)
+- On user request ("regenerate the overview")
+- When a major architectural decision is made (optional — adding it to
+  PROJECT_OVERVIEW now saves a future session from having to dig)
+
+**Don't over-edit**: this is a derived view. Single-line changes that
+parrot a recent work.log event don't belong here. PROJECT_OVERVIEW is
+for things a new LLM MUST know to be productive — small enough to
+read in 60 seconds.
+## 8. Why these rules exist
 
 - **Continuity across sessions**: AI sessions are stateless. `work.log` is
   the persistence layer that lets a new session pick up where the last
@@ -335,7 +620,7 @@ time you see a conflict file.
 
 ---
 
-## 8. Per-LLM type — capability declaration
+## 9. Per-LLM type — capability declaration
 
 `<model-id>` in event headers is the type tag. But model-ids are opaque to
 future readers (human or other AI). To make the log self-describing, every
@@ -588,13 +873,17 @@ proposing the change. Don't unilaterally edit PROTOCOL.md.
 #
 # Events: PROMPT, WORK_START, WORK_END, FILES_CREATED, FILES_MODIFIED,
 #         FILES_MOVED, FILES_DELETED, HANDOFF, HANDOFF_RECEIVED,
-#         HANDOFF_CLOSED, NOTE, PROJECT_BOOTSTRAPPED, RE_ENGAGED
+#         HANDOFF_CLOSED, NOTE, PROJECT_BOOTSTRAPPED, RE_ENGAGED, CORRECTION
 #
 # Session-start events (PROJECT_BOOTSTRAPPED, RE_ENGAGED) MUST declare
-# Vendor / Tools / Strengths / Context / Harness — see PROTOCOL.md §8.
+# Vendor / Harness / Capabilities / Strengths / Context — see PROTOCOL.md §9.
 # Race-free append discipline — see PROTOCOL.md §6.
+# Tiered storage (rotation when this file exceeds 1.5× threshold) — see §7.
 #
-# Read tail before every new user turn. See AIMemory/PROTOCOL.md.
+# READ ORDER on every new turn:
+#   1. AIMemory/INDEX.md (file inventory + topic index)
+#   2. AIMemory/PROJECT_OVERVIEW.md (project primer)
+#   3. this file (work.log) — tail ~50 lines
 # ============================================================
 ```
 
@@ -689,17 +978,28 @@ EOF
 
 From the next user message onward, on EVERY user turn:
 
-1. **Read work.log tail first** (last ~50 lines).
-2. **Check for orphan WORK_START** — ask the user about resumption.
-3. **Append a PROMPT event** with the user's verbatim message.
-4. **Append WORK_START** when you begin acting (and for sessions that
+1. **Read tier entry-points first, in this order** (per PROTOCOL.md §7.7):
+   a. `AIMemory/INDEX.md` — small file inventory + topic index
+   b. `AIMemory/PROJECT_OVERVIEW.md` if it exists — project primer
+   c. `AIMemory/work.log` tail (~50 lines)
+   Don't load warm/cold archives unless the user's request requires it
+   (use INDEX.md's Topic index to decide).
+2. **Check rotation threshold**: count events in work.log; if over 1.5×
+   the threshold from INDEX.md (default 75 with threshold 50), rotate
+   per §7.5 BEFORE doing other work.
+3. **Check for orphan WORK_START** — ask the user about resumption.
+4. **Append a PROMPT event** with the user's verbatim message.
+5. **Append WORK_START** when you begin acting (and for sessions that
    span a long gap, also `RE_ENGAGED` with capabilities at session start).
-5. **Use absolute paths** in any FILES_* events.
-6. **All new markdown files** go under `AIMemory/` with
+6. **Use absolute paths** in any FILES_* events.
+7. **All new markdown files** go under `AIMemory/` with
    `{slug}.{your-model-id}.md` naming.
-7. **Append WORK_END** when done, with status.
-8. **For cross-AI handoffs**, write `handoff_*.{your-model-id}.md` per
-   AICP, and log a `HANDOFF` event.
+8. **Append WORK_END** when done, with status.
+9. **For cross-AI handoffs**, write `handoff_*.{your-model-id}.md` per
+   AICP, and log a `HANDOFF` event. Update INDEX.md's "Active handoffs"
+   section.
+10. **When you create or rotate a notable file** (archive, cold digest,
+    handoff), update INDEX.md accordingly.
 
 If the user explicitly opts out of logging for a trivial turn ("don't log
 this, just answer X"), respect it — but the default is always log.
@@ -795,4 +1095,89 @@ markdown.
 
 ---
 
-Now execute the nine tasks. Begin.
+## §F — Content for `AIMemory/INDEX.md`
+
+Write this stub on bootstrap. It grows as warm/cold tiers fill up.
+
+```markdown
+# AIMemory Index
+
+## Configuration
+- HOT_RETENTION_EVENTS: 50
+
+## Hot — read every session
+- work.log — last N events, append-only
+
+## Warm — read only when needed
+| File | Date range | Events | Topics | Summary |
+|------|------------|--------|--------|---------|
+(none yet — populated as work.log rotates)
+
+## Cold — fetch only on explicit need
+| File | Period covered | Topics | Summary |
+|------|----------------|--------|---------|
+(none yet)
+
+## Topic index — grep me
+(none yet — keywords appear here as archives are created)
+
+## Active handoffs (open AICP threads)
+(none yet)
+
+## Other notable files
+- PROTOCOL.md — the rules
+- PROJECT_OVERVIEW.md — onboarding primer (read after INDEX.md)
+
+---
+Last update: <YYYY-MM-DD HH:MM> by <model-id>
+```
+
+Replace `<YYYY-MM-DD HH:MM>` and `<model-id>` with real values.
+
+---
+
+## §G — Content for `AIMemory/PROJECT_OVERVIEW.md`
+
+Onboarding stub. Mostly empty on bootstrap; the user (or a later
+session) fills it in as decisions land.
+
+```markdown
+# Project Overview
+
+> Onboarding for new LLMs joining this project. Read this AFTER
+> AIMemory/INDEX.md (which tells you what files exist) and BEFORE
+> AIMemory/work.log tail (which tells you what's happening right now).
+
+## What is this project?
+<TODO: 2–4 sentences. The user can fill this in, or you can ask them
+on first turn and write it here.>
+
+## Tech stack
+<TODO: bullets of major techs — ask user if not obvious from the project>
+
+## Key decisions locked in
+(none yet — populated as architectural decisions accumulate)
+
+## Major work completed
+(none yet)
+
+## Active concerns
+(none yet — what's currently being worked on or blocked)
+
+## Where to look
+- Recent activity → AIMemory/work.log
+- Topic-based history → AIMemory/INDEX.md (Topic index section)
+- Long-term history → AIMemory/cold/digest-*.md
+
+---
+Last rebuild: <YYYY-MM-DD> by <model-id>
+Source: bootstrap stub (no cold digests yet)
+```
+
+If the user gave context in their message (project description, tech
+stack), incorporate it into the "What is this project?" / "Tech stack"
+sections rather than leaving as TODO.
+
+---
+
+Now execute the ten tasks. Begin.

@@ -1,0 +1,42 @@
+# AIMemory Index
+
+## Configuration
+- HOT_RETENTION_EVENTS: 50
+
+## Hot — read every session
+- work.log — last N events, append-only
+
+## Warm — read only when needed
+| File | Date range | Events | Topics | Summary |
+|------|------------|--------|--------|---------|
+| archive/work-2026-04-26.log | 2026-04-26 09:00–22:00 | 87 | auth, jwt, refresh-tokens, toctou-race, db-locking | JWT auth implementation; TOCTOU race in refresh-rotation found by gpt-5-codex review, fixed via SELECT FOR UPDATE with concurrent-refresh test (1000/1000 trials pass). |
+| archive/work-2026-04-25.log | 2026-04-25 14:00–18:30 | 23 | bootstrap, project-setup, obsidian | Initial project bootstrap by claude-opus-4-5; Obsidian vault opened; tech stack established (Next.js + tRPC + Postgres). |
+
+## Cold — fetch only on explicit need
+| File | Period covered | Topics | Summary |
+|------|----------------|--------|---------|
+| cold/digest-2026-03.md | 2026-03 | mvp-scope, schema-design, ci-pipeline | Pre-launch sprint: schema decisions, CI setup with gh actions, MVP scope locked at 5 features. See digest for full decision log. |
+
+## Topic index — grep me
+auth           → archive/work-2026-04-26.log
+jwt            → archive/work-2026-04-26.log
+refresh-tokens → archive/work-2026-04-26.log
+toctou-race    → archive/work-2026-04-26.log
+db-locking     → archive/work-2026-04-26.log
+bootstrap      → archive/work-2026-04-25.log
+obsidian       → archive/work-2026-04-25.log
+project-setup  → archive/work-2026-04-25.log
+mvp-scope      → cold/digest-2026-03.md
+schema-design  → cold/digest-2026-03.md
+ci-pipeline    → cold/digest-2026-03.md
+
+## Active handoffs (open AICP threads)
+- handoff_perf-question.gemini-2-5-pro.md — to claude-opus-4-5, NORMAL, opened 2026-04-26 15:40
+
+## Other notable files
+- PROTOCOL.md — the rules (every agent reads this once on bootstrap)
+- PROJECT_OVERVIEW.md — onboarding primer (read after INDEX.md)
+- session-checkpoint-2026-04-20.claude-opus-4-5.md — pre-launch milestone snapshot
+
+---
+Last update: 2026-04-26 22:30 by claude-opus-4-5
