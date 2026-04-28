@@ -10,6 +10,58 @@
 
 ---
 
+## Quick start
+
+Using several AI coding agents is powerful, but the context handoff is painful: copy-pasting summaries, repeating decisions, losing track of who ran what.
+
+`agent-work-mem` gives your project one shared working memory. Any agent can read it, write to it, and hand work off to another agent.
+
+### Install in one prompt
+
+Open any agent in your project directory and say:
+
+```text
+Fetch https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/prompt.md and apply it to this project.
+```
+
+Or, in plain language:
+
+```text
+Install daystar7777/agent-work-mem into this project.
+```
+
+The agent will create an `AIMemory/` folder and set up the shared memory protocol.
+
+### Start another agent
+
+After installation, open any other agent and say:
+
+```text
+Read the project structure and AIMemory, then tell me you understand the current state.
+```
+
+That agent will read `AIMemory/INDEX.md`, `AIMemory/PROJECT_OVERVIEW.md`, and `AIMemory/work.log` before working.
+
+### Hand off work
+
+Ask the sending agent:
+
+```text
+Hand this off to Codex for implementation.
+```
+
+Then ask the receiving agent:
+
+```text
+Review the handoff and execute it.
+```
+
+All prompts, decisions, actions, tests, and handoffs are recorded in plain markdown, especially `AIMemory/work.log`.
+
+Works with Claude, Codex, Cursor, Antigravity, Aider, Cline, Continue, Windsurf, gemini-cli, and any agent that can read and write files.
+
+---
+
 ## What is this?
 
 If you've ever felt any of these:
