@@ -5,6 +5,12 @@ assistants (Claude, GPT, Gemini, Codex, etc.) collaborate on this project
 without losing state across sessions or stepping on each other's work.
 Optionally also wire it up to Obsidian for a clean reading/querying UI.
 
+Language policy: all protocol/instruction templates created by this prompt
+must be written in English. Preserve user-provided text verbatim in logs or
+handoffs, but do not localize `PROTOCOL.md`, `INDEX.md`,
+`PROJECT_OVERVIEW.md`, or protocol templates unless the user explicitly asks
+for a separate human-facing translation.
+
 ## Prerequisite — you must be an agentic LLM
 
 This protocol assumes you have **filesystem read+write AND shell execution**

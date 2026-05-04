@@ -1,6 +1,6 @@
 # agent-work-mem
 
-[한국어 README](README.ko.md)
+[Korean README](README.ko.md)
 
 > A vendor-neutral, file-based collaboration protocol that lets multiple AI coding agents — Claude Code, ChatGPT Codex CLI, OpenCode, Antigravity, Cursor, Aider, Cline, Continue, Windsurf, gemini-cli — share state, hand off work, and resume across sessions, models, and machines. Nothing but markdown in your project.
 
@@ -15,6 +15,10 @@
 Using several AI coding agents is powerful, but the context handoff is painful: copy-pasting summaries, repeating decisions, losing track of who ran what.
 
 `agent-work-mem` gives your project one shared working memory. Any agent can read it, write to it, and hand work off to another agent.
+
+### Language policy
+
+All operational prompt surfaces installed by `agent-work-mem` are English-only: `prompt.md`, `PROTOCOL.md`, `upgrade.md`, and generated protocol templates. Localized README files are human documentation only and are not copied into `AIMemory/` or loaded as protocol prompts. User-provided text in logs and handoffs is preserved verbatim.
 
 ### Install in one prompt
 
@@ -238,15 +242,15 @@ The handoff system is the most powerful feature. The phrasings that work in prac
 
 **To the sending agent:**
 
-> "이 작업 끝나면 `gpt-5-codex`에게 핸드오프해줘."
 > "When you finish, hand this off to `gpt-5-codex` for review."
+> "Prepare a handoff for `gpt-5-codex` so it can continue from here."
 
 The agent will create `AIMemory/handoff_<topic>.<your-model>.md` with a structured AICP header and log a `HANDOFF` event in `work.log`.
 
 **To the receiving agent (in a separate session):**
 
-> "`claude-opus-4-5`가 핸드오프한 거 받아서 검토해줘."
 > "Pick up the handoff that `claude-opus-4-5` sent and review it."
+> "Review the latest open handoff and continue the work."
 
 The receiving agent reads `work.log`, finds the open HANDOFF event, opens the handoff file, and writes a `REVIEW_RESPONSE` reply with action items.
 

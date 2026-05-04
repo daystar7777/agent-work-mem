@@ -3,6 +3,11 @@
 > Applies to every AI agent invoked on this project, regardless of model
 > or vendor. Read this before acting on any user request.
 
+Language policy: this protocol and other installed instruction templates are
+English-only. Preserve user-provided text verbatim in `PROMPT` events and
+handoffs, but do not translate protocol templates or shared-memory structure
+unless the user explicitly asks for a separate human-facing translation.
+
 ---
 
 ## The five rules
