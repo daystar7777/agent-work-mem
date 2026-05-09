@@ -1,6 +1,6 @@
 # agent-work-mem
 
-[Korean README](README.ko.md)
+[Korean README](README.ko.md) | [Japanese README](README.ja.md) | [Korean tmux guide](tmux-usage.ko.md)
 
 > A vendor-neutral, file-based collaboration protocol that lets multiple AI coding agents — Claude Code, ChatGPT Codex CLI, OpenCode, Antigravity, Cursor, Aider, Cline, Continue, Windsurf, gemini-cli — share state, hand off work, and resume across sessions, models, and machines. Nothing but markdown in your project.
 
@@ -18,7 +18,7 @@ Using several AI coding agents is powerful, but the context handoff is painful: 
 
 ### Language policy
 
-All operational prompt surfaces installed by `agent-work-mem` are English-only: `prompt.md`, `PROTOCOL.md`, `upgrade.md`, optional `tmux-handoff.md`, and generated protocol templates. Localized README files are human documentation only and are not copied into `AIMemory/` or loaded as protocol prompts. User-provided text in logs and handoffs is preserved verbatim.
+All operational prompt surfaces installed by `agent-work-mem` are English-only: `prompt.md`, `PROTOCOL.md`, `upgrade.md`, optional `tmux-handoff.md`, and generated protocol templates. Localized README files and usage guides are human documentation only and are not copied into `AIMemory/` or loaded as protocol prompts. User-provided text in logs and handoffs is preserved verbatim.
 
 ### Install in one prompt
 
@@ -62,7 +62,84 @@ Review the handoff and execute it.
 
 All prompts, decisions, actions, tests, and handoffs are recorded in plain markdown, especially `AIMemory/work.log`.
 
-Works with Claude, Codex, Cursor, Antigravity, Aider, Cline, Continue, Windsurf, gemini-cli, and any agent that can read and write files.
+Works with Claude, Codex, Gemini, OpenCode, Cursor, Antigravity, Aider, Cline, Continue, Windsurf, gemini-cli, and any agent that can read and write files.
+
+### Use tmux when the agents are open together
+
+If you want Codex, Claude, Gemini, and OpenCode open at the same time,
+tmux is the easiest way to put them in one shared workspace.
+
+Korean readers can also use the standalone [tmux usage guide](tmux-usage.ko.md).
+
+1. Open a tmux session in your project directory:
+
+   ```bash
+   tmux new -s awm-demo
+   ```
+
+2. Split the window and start one agent in each pane:
+
+   ```bash
+   tmux split-window -h
+   tmux split-window -v
+   tmux select-layout tiled
+   ```
+
+   Example pane layout:
+
+   ```text
+   codex     claude
+   gemini    opencode
+   ```
+
+3. Give each pane a simple name. Run this inside each pane, changing the
+   name each time:
+
+   ```bash
+   tmux select-pane -T codex
+   ```
+
+   You can also ask the agent in that pane:
+
+   ```text
+   Rename this tmux pane to codex.
+   ```
+
+4. In the pane that will send work, enable tmux delivery:
+
+   ```text
+   tmux handoff on
+   ```
+
+5. Work naturally:
+
+   ```text
+   Design a login-only website. When the design is ready, hand it off to
+   tmux pane claude for review.
+   ```
+
+   Then, after the review comes back:
+
+   ```text
+   Apply Claude's review, then hand the implementation off to tmux pane
+   opencode.
+   ```
+
+tmux is only the delivery channel. The real source of truth is still
+`AIMemory/work.log` plus `AIMemory/handoff_*.md`, so the workflow also
+survives if a pane closes or a model changes.
+
+If routing feels uncertain, run the tiny transport check:
+
+```text
+Send a high-five to tmux pane claude; return HIGHFIVE_CONFIRMED to my source pane.
+```
+
+To stop using tmux delivery in the current agent session:
+
+```text
+tmux handoff off
+```
 
 ---
 
@@ -260,6 +337,9 @@ The receiving agent reads `work.log`, finds the open HANDOFF event, opens the ha
 See [`examples/handoff_auth-review.claude-opus-4-5.sample.md`](examples/handoff_auth-review.claude-opus-4-5.sample.md) and the matching response for full sample files.
 
 ### tmux direct handoff — optional, lazy-loaded
+
+The previous section is the easy path. This section explains the rules in
+more detail for advanced use.
 
 If both agents are running in the same tmux server, you can ask the sender
 to deliver the AICP handoff directly to a named pane:

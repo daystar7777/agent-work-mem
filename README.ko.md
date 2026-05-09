@@ -1,154 +1,213 @@
 # agent-work-mem
 
-> 여러 AI 에이전트를 하나의 팀처럼 쓰기 위한 공유 작업 기억입니다.
->
-> Claude, Codex, Cursor, Antigravity, Aider 등 어떤 에이전트를 쓰든, 같은 프로젝트 기억을 읽고 이어받게 만듭니다.
+[English README](README.md) | [日本語 README](README.ja.md) | [tmux 사용법](tmux-usage.ko.md)
 
-[English README](README.md)
+> 여러 AI 코딩 에이전트를 하나의 팀처럼 쓰기 위한 파일 기반 공유 작업 기억입니다.
+>
+> Claude, Codex, Gemini, OpenCode, Cursor, Aider 같은 에이전트가 같은 프로젝트의 `AIMemory/`를 읽고, 작업을 이어받고, 서로 handoff할 수 있게 합니다.
 
 ---
 
 ## 왜 필요한가요?
 
-이젠 에이전틱 AI 시대입니다.
+좋은 AI 코딩 에이전트는 많습니다. 하지만 한 에이전트만 쓰기에는 토큰과 관점이 부족하고, 여러 에이전트를 쓰면 매번 맥락을 복사해서 붙여 넣어야 합니다.
 
-Claude, Codex, Antigravity, Cursor처럼 좋은 에이전트는 많습니다.  
-하지만 하나만 쓰기엔 토큰이 부족하고, 여러 개를 쓰자니 매번 맥락을 복사해서 붙여넣어야 합니다.
+`agent-work-mem`은 프로젝트 안에 `AIMemory/`라는 공유 작업 기억을 만듭니다. 에이전트는 새 세션을 시작할 때 이 기억을 읽고, 작업 중 생긴 결정과 결과를 markdown으로 남깁니다.
 
-방금 어떤 에이전트가 무엇을 했는지, 테스트는 돌렸는지, 어떤 결정을 내렸는지 다시 설명하는 것도 불편합니다.
+그래서 이런 흐름이 쉬워집니다.
 
-`agent-work-mem`은 이 문제를 해결합니다.
+```text
+Codex가 설계한다 -> Claude가 리뷰한다 -> OpenCode가 구현한다
+```
 
-프로젝트 안에 `AIMemory/`라는 작업 기억을 만들고, 모든 에이전트가 같은 기록을 읽고 쓰게 합니다.  
-설계는 Claude가 하고, 실행은 Codex가 하고, 검토는 다른 에이전트가 맡아도 됩니다.
-
-당신은 지휘만 하면 됩니다.
+핵심은 간단합니다. 서버도, 데이터베이스도, 별도 SaaS도 없습니다. 프로젝트 폴더 안의 markdown 파일만 사용합니다.
 
 ---
 
 ## 설치
 
-사용하던 아무 에이전트에게 아래처럼 말하세요.
+프로젝트 폴더에서 아무 에이전트나 열고 이렇게 말하세요.
 
 ```text
-깃허브에서 daystar7777/agent-work-mem 받아서 이 프로젝트에 설치해줘
+Fetch https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/prompt.md and apply it to this project.
 ```
 
-에이전트가 이 저장소의 설치 프롬프트를 가져와 프로젝트에 `AIMemory/` 구조를 만들고, 작업 기억 프로토콜을 적용합니다.
-
-설치가 끝나면 다른 에이전트에게 이렇게 말하면 됩니다.
+또는 더 편하게:
 
 ```text
-프로젝트 구조 파악해줘
+Install daystar7777/agent-work-mem into this project.
 ```
 
-그러면 해당 에이전트가 `AIMemory/`를 읽고 프로젝트의 현재 상태, 결정 사항, 작업 기록을 파악합니다.
+에이전트가 `AIMemory/` 폴더를 만들고, 공유 작업 기억 프로토콜을 설치합니다.
+
+설치가 끝난 뒤 다른 에이전트를 열면 이렇게 시작하면 됩니다.
+
+```text
+Read the project structure and AIMemory, then tell me you understand the current state.
+```
+
+에이전트는 `AIMemory/INDEX.md`, `AIMemory/PROJECT_OVERVIEW.md`, `AIMemory/work.log`를 읽고 현재 프로젝트 상태를 파악합니다.
 
 ---
 
-## 기본 사용법
+## 기본 handoff 사용법
 
-Claude에서 설계했다면 이렇게 말하세요.
-
-```text
-이 내용을 Codex가 이어받을 수 있게 핸드오프해줘
-```
-
-Codex에서는 이렇게 말하면 됩니다.
+작업을 보내는 에이전트에게 자연어로 말하면 됩니다.
 
 ```text
-핸드오프 받은 거 검토하고 실행해줘
+로그인만 되는 웹사이트를 설계해줘. 설계가 끝나면 Claude에게 리뷰 handoff를 만들어줘.
 ```
 
-에이전트가 몇 개든 같은 방식으로 이어받을 수 있습니다.
+받는 에이전트에게는 이렇게 말합니다.
 
-핸드오프 파일은 사람이 직접 작성하지 않아도 됩니다.  
-자연어로 말하면 에이전트가 `AIMemory/handoff_*.md` 파일을 만들고, 필요한 내용을 구조화해서 남깁니다.
+```text
+최근 handoff를 읽고 리뷰해줘.
+```
+
+그러면 에이전트가 `AIMemory/handoff_*.md` 파일을 만들고, `AIMemory/work.log`에 언제 누가 무엇을 넘겼는지 기록합니다.
+
+handoff 파일을 사람이 직접 만들 필요는 없습니다. 평소처럼 말하면 에이전트가 구조화된 handoff 파일을 만들어 줍니다.
 
 ---
 
-## 무엇이 기록되나요?
+## tmux로 여러 에이전트를 동시에 쓰기
 
-당신이 내린 명령, 에이전트가 한 행동, 결정 사항, 테스트 여부, 핸드오프 기록이 모두 남습니다.
+Codex, Claude, Gemini, OpenCode를 한 프로젝트 안에서 동시에 켜두고 싶다면 tmux가 가장 쉽습니다. 화면을 여러 pane으로 나누고, 각 pane에 에이전트를 하나씩 띄우면 됩니다.
 
-핵심 기록은 여기에 쌓입니다.
+더 자세한 한글판 절차는 [tmux 사용법](tmux-usage.ko.md)에 따로 정리해 두었습니다.
 
-```text
-AIMemory/work.log
+### 1. 프로젝트 폴더에서 tmux 시작
+
+```bash
+tmux new -s awm-demo
 ```
 
-언제든 이 파일을 열면 작업 흐름을 확인할 수 있습니다.
+### 2. pane을 나누고 에이전트 실행
 
-새 에이전트를 투입할 때도 길게 다시 설명할 필요가 없습니다.
-
-```text
-프로젝트 구조 파악해줘
+```bash
+tmux split-window -h
+tmux split-window -v
+tmux select-layout tiled
 ```
 
-이 한마디면 새 에이전트가 기존 작업 기억을 읽고 바로 이어받을 수 있습니다.
+예를 들면 이렇게 배치합니다.
+
+```text
+codex     claude
+gemini    opencode
+```
+
+각 pane에서 해당 에이전트를 실행합니다. 예를 들어 Codex pane에서는 `codex`, Claude pane에서는 `claude`, OpenCode pane에서는 `opencode`처럼 실행합니다. 실제 명령은 본인 환경에 설치된 CLI 이름을 쓰면 됩니다.
+
+### 3. pane 이름 붙이기
+
+각 pane 안에서 이름을 붙입니다.
+
+```bash
+tmux select-pane -T codex
+```
+
+다른 pane에서는 `claude`, `gemini`, `opencode`처럼 바꿔서 실행합니다.
+
+에이전트에게 말로 시켜도 됩니다.
+
+```text
+이 tmux pane 이름을 codex로 바꿔줘.
+```
+
+pane 이름은 handoff를 보낼 주소처럼 쓰입니다. 이름이 단순해야 덜 헷갈립니다.
+
+### 4. tmux handoff 켜기
+
+작업을 보내는 쪽 에이전트에게 말합니다.
+
+```text
+tmux handoff on
+```
+
+이 명령을 말하기 전까지는 tmux 전용 설명을 불러오지 않습니다. 일반 세션은 가볍게 유지하고, tmux가 필요할 때만 켜는 방식입니다.
+
+### 5. 실제로 작업 넘기기
+
+예를 들어 Codex에게 이렇게 말할 수 있습니다.
+
+```text
+로그인만 되는 웹사이트를 설계해줘. 설계가 끝나면 tmux pane claude로 리뷰 handoff를 보내줘.
+```
+
+Claude 리뷰가 돌아오면 다시 Codex에게:
+
+```text
+Claude 리뷰를 반영하고, 구현은 tmux pane opencode로 넘겨줘.
+```
+
+이때 tmux는 단지 전달 채널입니다. 실제 기록은 항상 `AIMemory/work.log`와 `AIMemory/handoff_*.md`에 남습니다. 그래서 pane이 닫히거나 세션이 바뀌어도 handoff 기록은 프로젝트 안에 남아 있습니다.
+
+### 6. 연결 테스트
+
+pane 이름이 맞는지 먼저 확인하고 싶으면 high-five 테스트를 씁니다.
+
+```text
+tmux pane claude에 high-five를 보내고, 내 source pane으로 HIGHFIVE_CONFIRMED를 돌려줘.
+```
+
+이 테스트는 tmux 전달만 확인합니다. handoff 파일을 만들거나 `work.log`를 수정하지 않습니다.
+
+### 7. tmux handoff 끄기
+
+현재 에이전트 세션에서 tmux 전달을 끄려면:
+
+```text
+tmux handoff off
+```
+
+이후에는 `tmux-pane:<name>` 같은 대상이 있어도 일반 AICP handoff 파일 흐름만 사용합니다. 다시 쓰려면 `tmux handoff on`을 말하면 됩니다.
 
 ---
 
-## 어떤 환경에서 쓸 수 있나요?
-
-`agent-work-mem`은 특정 에이전트, 모델, 운영체제에 묶이지 않습니다.
-
-서버가 필요 없습니다.  
-데이터베이스도 필요 없습니다.  
-별도 SaaS 가입도 필요 없습니다.
-
-오직 마크다운 파일로만 동작합니다.
-
-그래서 Claude, Codex, Cursor, Antigravity, Aider, Cline, Continue, Windsurf, gemini-cli 등 다양한 에이전트와 함께 사용할 수 있습니다.
-
----
-
-## 프로젝트 안에는 무엇이 생기나요?
-
-설치하면 대략 이런 구조가 만들어집니다.
+## 설치하면 어떤 파일이 생기나요?
 
 ```text
 your-project/
-├── your-code/
-└── AIMemory/
-    ├── INDEX.md
-    ├── PROJECT_OVERVIEW.md
-    ├── PROTOCOL.md
-    ├── work.log
-    ├── archive/
-    ├── cold/
-    └── handoff_*.md
+├─ your-code/
+└─ AIMemory/
+   ├─ INDEX.md
+   ├─ PROJECT_OVERVIEW.md
+   ├─ PROTOCOL.md
+   ├─ work.log
+   ├─ archive/
+   ├─ cold/
+   └─ handoff_*.md
 ```
-
-각 파일의 역할은 간단합니다.
 
 | 파일 | 역할 |
 | --- | --- |
-| `INDEX.md` | 필요한 기억을 빠르게 찾기 위한 색인 |
-| `PROJECT_OVERVIEW.md` | 새 에이전트가 프로젝트를 이해하기 위한 요약 |
-| `PROTOCOL.md` | 에이전트들이 따라야 할 작업 기억 규칙 |
-| `work.log` | 최근 명령, 작업, 결정, 테스트 기록 |
-| `archive/` | 오래된 작업 기록 보관 |
-| `cold/` | 장기 요약 기록 |
-| `handoff_*.md` | 에이전트 간 인수인계 메모 |
+| `INDEX.md` | 무엇을 어디서 찾아야 하는지 알려주는 색인 |
+| `PROJECT_OVERVIEW.md` | 새 에이전트가 프로젝트를 빠르게 이해하기 위한 요약 |
+| `PROTOCOL.md` | 에이전트들이 따라야 하는 작업 기억 규칙 |
+| `work.log` | 최근 명령, 작업, 결정, 테스트, handoff 기록 |
+| `archive/` | 오래된 작업 로그 |
+| `cold/` | 긴 기간의 요약 기록 |
+| `handoff_*.md` | 에이전트 사이의 작업 인수인계 문서 |
+
+tmux를 사용할 때만 선택적으로 `AIMemory/tmux-handoff.md`가 생길 수 있습니다. 일반 설치에서는 꼭 필요하지 않습니다.
 
 ---
 
-## 이런 상황에 좋습니다
+## 좋은 사용 예시
 
-- Claude에서 설계하고 Codex에서 구현하고 싶을 때
-- Cursor, Aider, Cline 등 여러 에이전트를 프로젝트별로 섞어 쓰고 싶을 때
-- 세션 압축이나 모델 교체 후에도 맥락을 잃고 싶지 않을 때
-- 에이전트가 실제로 무엇을 했는지 기록으로 남기고 싶을 때
-- 새 에이전트를 투입할 때 매번 프로젝트 설명을 반복하고 싶지 않을 때
-- Obsidian으로 작업 기록을 시각화하고 싶을 때
+- Codex가 기능 설계를 하고 Claude가 리뷰할 때
+- Claude가 리뷰한 내용을 OpenCode가 구현할 때
+- Gemini에게 분석이나 검증만 맡기고 싶을 때
+- `/compact`, 모델 변경, 세션 종료 뒤에도 작업 맥락을 잃고 싶지 않을 때
+- 여러 에이전트가 같은 프로젝트에서 동시에 일하지만 서로의 작업을 밟지 않게 하고 싶을 때
 
 ---
 
-## 한 줄로 요약
+## 한 줄 요약
 
 ```text
-에이전트는 여러 개를 쓰고, 작업 기억은 하나로 공유하세요.
+여러 AI 에이전트를 열어두고, 작업 기억은 AIMemory 하나로 공유하세요.
 ```
 
-`agent-work-mem`은 단 한 줄로 설치하는 AI 에이전트용 공유 작업 기억입니다.
+`agent-work-mem`은 AI 코딩 에이전트들을 느슨하지만 기록 가능한 팀으로 묶어주는 markdown-first 프로토콜입니다.
