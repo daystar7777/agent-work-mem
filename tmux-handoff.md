@@ -1,7 +1,7 @@
 # tmux Direct Handoff Extension
 
 This is an optional, lazy-loaded AIMemory extension. Read it only when
-both conditions are true:
+all conditions are true:
 
 1. The current agent is running inside tmux (`TMUX` is non-empty or
    `tmux display-message -p '#{pane_id}'` works).
@@ -11,8 +11,10 @@ both conditions are true:
    test, the user message is the configured high-five confirmation
    phrase (`HIGHFIVE_CONFIRMED` by default), or the user asked in English
    or their own language to name or rename the current pane.
+3. The user has not disabled tmux handoff for this session with
+   `tmux handoff off`.
 
-If either condition is false, do not load this file. Use normal AICP
+If any condition is false, do not load this file. Use normal AICP
 handoff files only.
 
 ## Manual activation
@@ -26,15 +28,39 @@ tmux handoff on
 
 When the user says `tmux handoff on`:
 
-1. Check whether the current agent is inside tmux (`TMUX` is non-empty or
+1. Clear any session-local "tmux handoff disabled" flag.
+2. Check whether the current agent is inside tmux (`TMUX` is non-empty or
    `tmux display-message -p '#{pane_id}'` works).
-2. If not inside tmux, say that tmux handoff is unavailable in this
+3. If not inside tmux, say that tmux handoff is unavailable in this
    session and do not read, fetch, or create `AIMemory/tmux-handoff.md`.
-3. If inside tmux, read `AIMemory/tmux-handoff.md`. If it is missing and
+4. If inside tmux, read `AIMemory/tmux-handoff.md`. If it is missing and
    web fetch is available, fetch this file from the upstream
    `agent-work-mem` repository into `AIMemory/tmux-handoff.md`.
-4. After loading, report that tmux handoff is ready and include the
+5. After loading, report that tmux handoff is ready and include the
    current pane id plus the stable pane name if one is configured.
+
+## Manual deactivation
+
+Treat this command, after trimming surrounding whitespace and ignoring
+case, as an explicit request to disable tmux handoff for the current
+agent session:
+
+```text
+tmux handoff off
+```
+
+When the user says `tmux handoff off`:
+
+1. Set a session-local "tmux handoff disabled" flag in active reasoning.
+2. Conceptually remove `AIMemory/tmux-handoff.md` from the active
+   context: do not follow this file's pane lookup, paste, high-five, pane
+   naming, or return-handoff rules after this point.
+3. Do not run tmux checks, do not read or fetch `AIMemory/tmux-handoff.md`,
+   and do not delete any cached `AIMemory/tmux-handoff.md` file.
+4. Process future handoffs through normal AICP only, even if the target
+   mentions `tmux-pane:<name-or-id>`, until the user says
+   `tmux handoff on` again.
+5. Say that tmux handoff is off for this session.
 
 ## Invariants
 
@@ -247,20 +273,101 @@ the high-five ASCII art and a `Sent by: <High-five sender>` line directly
 below it. Do not create AICP files or write log entries for this smoke
 test.
 
+## Receiver roles
+
+tmux handoff delivery must include the requested receiver roles. Do not
+paste one generic "read this handoff" prompt when the user asked the
+target pane to implement, review, inspect, test, verify, or fix
+something.
+
+Infer receiver roles from the user's wording in English or their own
+language. Roles can be combined. Preserve the user's requested order when
+it is clear. If the wording is ambiguous, ask one short clarification
+before delivery.
+
+Use these roles:
+
+- `IMPLEMENT`: The user asks the target pane to implement or build the
+  current design or requested change, then report back.
+- `REVIEW`: The user asks the target pane to review consistency,
+  alignment, or correctness against the current design, requirements, or
+  implementation. This is a conformance review, not an improvement pass.
+- `INSPECT`: The user asks the target pane to examine the design or
+  implementation and include improvement opportunities, quality concerns,
+  or suggested changes. Do not edit unless this is combined with
+  `IMPLEMENT` or `FIX`.
+- `TEST`: The user asks the target pane to run, add, or assess tests.
+- `VERIFY`: The user asks the target pane to validate behavior,
+  acceptance criteria, integration, or end-to-end correctness.
+- `FIX`: The user asks the target pane to modify files to correct
+  confirmed issues, then rerun focused checks.
+- `GENERAL_STATUS`: The user asks only for a status/report handoff or the
+  request does not fit the roles above.
+
+Examples:
+
+- "handoff the current design to gemini pane, have it implement it, then
+  send a report handoff back" -> `IMPLEMENT`
+- "handoff the current design to gemini pane for consistency review, then
+  send a report handoff back" -> `REVIEW`
+- "ask gemini pane to inspect the current design for improvements, then
+  send a report handoff back" -> `INSPECT`
+- "ask gemini pane to inspect the current implementation, test, validate,
+  fix confirmed issues, then hand off the result" ->
+  `INSPECT+TEST+VERIFY+FIX`
+
+Each role changes the prompt pasted into the target pane:
+
+- `IMPLEMENT` prompt:
+  "Action roles: IMPLEMENT. Implement the design or requested change in
+  the handoff. Edit files as needed, run focused validation, then create a
+  STATUS_REPORT handoff back to the source pane with changed files, tests,
+  and any blockers."
+- `REVIEW` prompt:
+  "Action roles: REVIEW. Check the handoff for consistency, alignment, and
+  correctness against the stated design, requirements, or implementation.
+  Do not implement. Create a REVIEW_RESPONSE handoff back to the source
+  pane with mismatches, risks, open questions, and residual risk."
+- `INSPECT` prompt:
+  "Action roles: INSPECT. Examine the handoff for improvement
+  opportunities, quality issues, simplifications, and design or
+  implementation concerns. Do not edit unless paired with IMPLEMENT or
+  FIX. Create a REVIEW_RESPONSE handoff back to the source pane with
+  improvement suggestions and risks."
+- `TEST` prompt:
+  "Action roles: TEST. Run, add, or assess the relevant tests requested by
+  the handoff. Report commands, results, coverage, and gaps."
+- `VERIFY` prompt:
+  "Action roles: VERIFY. Validate the requested behavior, acceptance
+  criteria, integration path, or end-to-end result. Report evidence,
+  failures, and confidence."
+- `FIX` prompt:
+  "Action roles: FIX. Fix confirmed issues when safe, rerun focused
+  checks, then create a STATUS_REPORT handoff back to the source pane with
+  fixes, changed files, commands run, and remaining risk."
+- `GENERAL_STATUS` prompt:
+  "Action roles: GENERAL_STATUS. Follow the action items in the handoff
+  and create the appropriate STATUS_REPORT, REVIEW_RESPONSE, or
+  BLOCKER_RAISED handoff back to the source pane."
+
+If multiple roles are present, compose the role instructions in order and
+make sure the pasted prompt names all roles.
+
 ## Sending flow
 
-1. Create `AIMemory/handoff_<topic>.<sender-model>.md` with the normal
-   AICP header and action items.
-2. Append the normal `FILES_CREATED` and `HANDOFF` events to
+1. Infer receiver roles from the user's request.
+2. Create `AIMemory/handoff_<topic>.<sender-model>.md` with the normal
+   AICP header, the inferred receiver roles, and action items.
+3. Append the normal `FILES_CREATED` and `HANDOFF` events to
    `AIMemory/work.log`.
-3. Resolve the current source pane:
+4. Resolve the current source pane:
 
    ```bash
    tmux display-message -p '#{pane_id}	#{?@awm_pane_name,#{@awm_pane_name},#{pane_title}}	#{session_name}:#{window_index}.#{pane_index}'
    ```
 
-4. Resolve the target pane by the rules above.
-5. Create a local prompt file under ignored local state:
+5. Resolve the target pane by the rules above.
+6. Create a local prompt file under ignored local state:
 
    ```bash
    mkdir -p .agent-work-mem
@@ -281,18 +388,23 @@ AIMemory/work.log. Then open:
 
   AIMemory/handoff_<topic>.<sender-model>.md
 
-Accept it by appending HANDOFF_RECEIVED, then execute the action items.
-When complete, create a STATUS_REPORT or REVIEW_RESPONSE handoff back to
-the sender, append HANDOFF_CLOSED for the original handoff, show the
-thumb-up ASCII again, and tmux-deliver the report back to the source pane
-if it can be resolved safely.
+Action roles: <IMPLEMENT|REVIEW|INSPECT|TEST|VERIFY|FIX|GENERAL_STATUS>
+Receiver instruction:
+  <role-specific instruction from "Receiver roles">
+
+Accept it by appending HANDOFF_RECEIVED, then execute the receiver
+instruction and the handoff action items. When complete, create the
+role-appropriate STATUS_REPORT, REVIEW_RESPONSE, or BLOCKER_RAISED handoff
+back to the sender, append HANDOFF_CLOSED for the original handoff, show
+the thumb-up ASCII again, and tmux-deliver the report back to the source
+pane if it can be resolved safely.
 
 Source pane: <source-pane-id-or-title>
 Sender model: <sender-model>
 EOF
    ```
 
-6. Paste it into the target pane:
+7. Paste it into the target pane:
 
    ```bash
    tmux load-buffer -b awm-handoff .agent-work-mem/tmux-handoff-message.txt
@@ -301,7 +413,7 @@ EOF
    tmux delete-buffer -b awm-handoff 2>/dev/null || true
    ```
 
-7. Append a `NOTE` to `work.log` saying the AICP handoff was also
+8. Append a `NOTE` to `work.log` saying the AICP handoff was also
    delivered to `tmux-pane:<target-pane>`.
 
 ## Receiving flow
@@ -312,10 +424,22 @@ When a pane receives a tmux handoff prompt:
 2. Read the normal AIMemory entry points.
 3. Open the handoff file named in the prompt.
 4. Append `HANDOFF_RECEIVED`.
-5. Execute the requested work.
+5. Execute the requested receiver roles and handoff action items.
 6. Create the normal response handoff:
-   - Use `STATUS_REPORT` for completed work or current state.
-   - Use `REVIEW_RESPONSE` when answering a `REVIEW_REQUEST`.
+   - For `IMPLEMENT`, use `STATUS_REPORT` with changed files, validation,
+     and remaining risk.
+   - For `REVIEW`, use `REVIEW_RESPONSE` with consistency findings,
+     mismatches, risks, open questions, and residual risk.
+   - For `INSPECT`, use `REVIEW_RESPONSE` with improvement opportunities,
+     quality concerns, suggested changes, and residual risk. If combined
+     with `FIX`, use `STATUS_REPORT` after the fixes.
+   - For `TEST`, use `STATUS_REPORT` with tests run or added, commands,
+     results, coverage, and gaps.
+   - For `VERIFY`, use `STATUS_REPORT` with validation evidence,
+     acceptance criteria checked, failures, and confidence.
+   - For `FIX`, use `STATUS_REPORT` with fixes made, changed files,
+     checks rerun, and remaining risk.
+   - For `GENERAL_STATUS`, use the response type requested by the handoff.
    - Use `BLOCKER_RAISED` if the request cannot be completed.
 7. Append `FILES_CREATED`, `HANDOFF`, and `HANDOFF_CLOSED`.
 8. Show the thumb-up ASCII again.

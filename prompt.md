@@ -111,9 +111,22 @@ when the user explicitly asks for tmux direct handoff support, such as:
 tmux handoff on
 ```
 
+The user can also disable tmux handoff for the current agent session:
+
+```text
+tmux handoff off
+```
+
+When the user asks for `tmux handoff off` (case-insensitive after trimming
+whitespace), set a session-local "tmux handoff disabled" flag. Do not run
+tmux checks, do not create, read, or fetch `AIMemory/tmux-handoff.md`, and
+ignore any tmux handoff instructions already loaded in the active context.
+Process future handoffs through normal AICP only until the user says
+`tmux handoff on` again.
+
 When the user asks for `tmux handoff on` (case-insensitive after trimming
-whitespace), first check whether the current agent is running inside tmux
-(`TMUX` is non-empty or
+whitespace), clear any session-local disabled flag, then check whether the
+current agent is running inside tmux (`TMUX` is non-empty or
 `tmux display-message -p '#{pane_id}'` works). If it is inside tmux,
 fetch:
 
@@ -856,23 +869,33 @@ Unclosed handoffs are like unfinished work — next session should check.
 
 ## Optional tmux direct delivery (lazy-loaded)
 
-When and only when the current agent is running inside tmux and the user
-explicitly names a target pane, the sender may deliver the already-created
-AICP handoff directly to that pane.
+When and only when the current agent is running inside tmux, tmux handoff
+has not been disabled, and the user explicitly names a target pane, the
+sender may deliver the already-created AICP handoff directly to that pane.
 
 Do not load tmux instructions during normal sessions. If the user says
-`tmux handoff on` (case-insensitive after trimming whitespace), first
-check whether the current session is inside tmux. If it is not, say that
-tmux handoff is unavailable and do not read, fetch, or create
-`AIMemory/tmux-handoff.md`. If it is inside tmux, read or fetch the tmux
-extension as described below.
+`tmux handoff off` (case-insensitive after trimming whitespace), set a
+session-local "tmux handoff disabled" flag. From that point, do not read,
+fetch, or follow `AIMemory/tmux-handoff.md`; ignore any tmux instructions
+already loaded in the active context; do not run tmux checks; and process
+future handoffs through normal AICP only, even if a target mentions
+`tmux-pane:<name-or-id>`. Do not delete any cached
+`AIMemory/tmux-handoff.md` file. The user can re-enable the extension with
+`tmux handoff on`.
 
-If `$TMUX` is set and the user asks for tmux pane delivery,
-`tmux-pane:<name-or-id>`, a tmux high-five smoke test, the configured
-high-five confirmation phrase (`HIGHFIVE_CONFIRMED` by default), or asks
-in English or their own language to name or rename the current pane, read
-`AIMemory/tmux-handoff.md` if it exists. If it does not exist and web
-fetch is available, fetch
+If the user says
+`tmux handoff on` (case-insensitive after trimming whitespace), first
+clear any session-local disabled flag, then check whether the current
+session is inside tmux. If it is not, say that tmux handoff is unavailable
+and do not read, fetch, or create `AIMemory/tmux-handoff.md`. If it is
+inside tmux, read or fetch the tmux extension as described below.
+
+If tmux handoff has not been disabled, `$TMUX` is set, and the user asks
+for tmux pane delivery, `tmux-pane:<name-or-id>`, a tmux high-five smoke
+test, the configured high-five confirmation phrase (`HIGHFIVE_CONFIRMED`
+by default), or asks in English or their own language to name or rename
+the current pane, read `AIMemory/tmux-handoff.md` if it exists. If it does
+not exist and web fetch is available, fetch
 <https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/tmux-handoff.md>
 into `AIMemory/tmux-handoff.md`, then follow it.
 
@@ -881,6 +904,21 @@ still the handoff file plus `work.log`: create the handoff, append the
 normal `FILES_CREATED` and `HANDOFF` events, then use tmux delivery. If
 pane lookup is missing or ambiguous, fall back to normal AICP and ask the
 user to identify the pane.
+
+When the user asks for tmux delivery, also infer what the receiver should
+do after receiving the handoff from English or any user-language natural
+wording, and include that role in both the AICP handoff and the
+tmux-pasted prompt. Roles can be combined. Use `IMPLEMENT` when the target
+pane should implement or build, `REVIEW` when it should check
+consistency, alignment, or correctness, `INSPECT` when it should examine
+the design or implementation and include improvement opportunities,
+`TEST` when it should run, add, or assess tests, `VERIFY` when it should
+validate behavior or acceptance criteria, `FIX` when it should modify
+files to correct confirmed issues, and `GENERAL_STATUS` for ordinary
+status/report handoffs. Treat review as a conformance check; treat inspect
+as a deeper improvement pass. If the requested role is unclear, ask before
+delivering. The receiving pane must create the role-appropriate report
+handoff back to the source pane.
 
 Exception: tmux high-five smoke tests are transport checks only. Do not
 create AICP files or write `work.log` entries for high-five tests.

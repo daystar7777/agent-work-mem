@@ -88,6 +88,12 @@ If not running inside tmux, do not create or read `AIMemory/tmux-handoff.md`.
 It is lazy-loaded only for explicit tmux handoff activation or explicit
 tmux pane handoff requests.
 
+If the user says `tmux handoff off` (case-insensitive after trimming
+whitespace), do not create, read, fetch, or follow
+`AIMemory/tmux-handoff.md` for the rest of the current agent session.
+Handle future handoffs through normal AICP only until the user says
+`tmux handoff on` again.
+
 ### Task 3 — Create INDEX.md (with current state reflected)
 
 Write `AIMemory/INDEX.md` using the template below. Populate the

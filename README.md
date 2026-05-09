@@ -271,6 +271,23 @@ This still writes the normal `AIMemory/handoff_*.md` file and `work.log`
 events first. tmux is only a local delivery shortcut that pastes an
 agent-facing instruction into the target pane.
 
+The pasted instruction changes with the work you ask the target pane to
+do. For example:
+
+> "Hand off the current design to tmux pane `gemini`; have it implement the design, then send a report handoff back."
+> "Hand off the current design to tmux pane `gemini` for consistency review, then send a report handoff back."
+> "Ask tmux pane `gemini` to inspect the current implementation, test and validate it, fix confirmed issues, then send a report handoff back."
+
+The sender records the matching receiver roles in the handoff and pasted
+tmux prompt: `IMPLEMENT`, `REVIEW`, `INSPECT`, `TEST`, `VERIFY`, `FIX`,
+or `GENERAL_STATUS`. Roles can be combined, such as
+`INSPECT+TEST+VERIFY+FIX`. `REVIEW` means checking consistency,
+alignment, or correctness; `INSPECT` means a deeper pass that also
+includes improvement opportunities. If the requested receiver role is
+ambiguous, the sender asks before delivering. English and localized
+natural-language requests are both first-class inputs for this role
+inference.
+
 The tmux instructions are lazy-loaded: non-tmux sessions do not read or
 install them. Say `tmux handoff on` to make the agent check whether the
 current session is inside tmux and load `tmux-handoff.md` only if that
@@ -280,6 +297,13 @@ into `AIMemory/tmux-handoff.md`; outside tmux it leaves that file absent. A
 receiving pane shows a small ASCII thumb-up when it accepts the handoff
 and again when it completes and sends a `STATUS_REPORT` or
 `REVIEW_RESPONSE` handoff back.
+
+Say `tmux handoff off` to disable tmux handoff for the current agent
+session. After that, the agent treats any loaded tmux handoff instructions
+as inactive context, does not run tmux checks, and handles future handoffs
+through normal AICP only, even if a target mentions `tmux-pane:<name-or-id>`.
+It does not delete a cached `AIMemory/tmux-handoff.md`; say
+`tmux handoff on` again to re-enable it.
 
 For reliable routing, give panes stable titles:
 
