@@ -5,6 +5,13 @@
 .vscode/
 .idea/
 
+# Local protocol/runtime state
+AIMemory/
+.agent-work-mem/
+.codex/
+.claude/
+.opencode/
+
 # Obsidian (per-user UI state, not the vault config)
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json

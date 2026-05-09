@@ -8,8 +8,8 @@ Optionally also wire it up to Obsidian for a clean reading/querying UI.
 Language policy: all protocol/instruction templates created by this prompt
 must be written in English. Preserve user-provided text verbatim in logs or
 handoffs, but do not localize `PROTOCOL.md`, `INDEX.md`,
-`PROJECT_OVERVIEW.md`, or protocol templates unless the user explicitly asks
-for a separate human-facing translation.
+`PROJECT_OVERVIEW.md`, optional `tmux-handoff.md`, or protocol templates
+unless the user explicitly asks for a separate human-facing translation.
 
 ## Prerequisite — you must be an agentic LLM
 
@@ -101,6 +101,38 @@ from day 1 so the very next session reads them in the right order.
 
 Both start mostly empty; they grow as the project ages.
 
+### Task 6.5 -- Install the tmux extension only on request inside tmux
+
+Do not fetch the optional tmux extension during normal bootstrap just
+because the current shell happens to be inside tmux. It is installed only
+when the user explicitly asks for tmux direct handoff support, such as:
+
+```text
+tmux handoff on
+```
+
+When the user asks for `tmux handoff on` (case-insensitive after trimming
+whitespace), first check whether the current agent is running inside tmux
+(`TMUX` is non-empty or
+`tmux display-message -p '#{pane_id}'` works). If it is inside tmux,
+fetch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/tmux-handoff.md \
+  -o AIMemory/tmux-handoff.md
+```
+
+If your harness cannot use `curl`, use web-fetch to load the same URL and
+write it to `AIMemory/tmux-handoff.md`.
+
+After writing it, add `tmux-handoff.md` to `INDEX.md` under "Other
+notable files" as an optional tmux direct handoff extension.
+
+If not running inside tmux, say that tmux handoff is unavailable in this
+session and do not create or read `AIMemory/tmux-handoff.md`. The file is
+lazy-loaded only for explicit tmux handoff activation or explicit tmux
+pane handoff requests.
+
 ### Task 7 — Append the first event
 
 Append a `PROJECT_BOOTSTRAPPED` entry to `AIMemory/work.log` using the
@@ -122,7 +154,8 @@ is the non-negotiable summary.
 Reply with:
 - Model-id, vendor, harness, capabilities (generic tags)
 - Files you created (absolute paths) — should include INDEX.md, PROTOCOL.md,
-  PROJECT_OVERVIEW.md, work.log
+  PROJECT_OVERVIEW.md, work.log, and tmux-handoff.md if explicitly enabled
+  inside tmux
 - Obsidian outcome (already installed / installed now / declined)
 - One sentence: "I will follow AIMemory/PROTOCOL.md from this turn forward."
 
@@ -821,6 +854,45 @@ Completed: <short status>. See <deliverable files, if any>.
 
 Unclosed handoffs are like unfinished work — next session should check.
 
+## Optional tmux direct delivery (lazy-loaded)
+
+When and only when the current agent is running inside tmux and the user
+explicitly names a target pane, the sender may deliver the already-created
+AICP handoff directly to that pane.
+
+Do not load tmux instructions during normal sessions. If the user says
+`tmux handoff on` (case-insensitive after trimming whitespace), first
+check whether the current session is inside tmux. If it is not, say that
+tmux handoff is unavailable and do not read, fetch, or create
+`AIMemory/tmux-handoff.md`. If it is inside tmux, read or fetch the tmux
+extension as described below.
+
+If `$TMUX` is set and the user asks for tmux pane delivery,
+`tmux-pane:<name-or-id>`, a tmux high-five smoke test, the configured
+high-five confirmation phrase (`HIGHFIVE_CONFIRMED` by default), or asks
+in English or their own language to name or rename the current pane, read
+`AIMemory/tmux-handoff.md` if it exists. If it does not exist and web
+fetch is available, fetch
+<https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/tmux-handoff.md>
+into `AIMemory/tmux-handoff.md`, then follow it.
+
+The tmux extension is only a delivery mechanism. The source of truth is
+still the handoff file plus `work.log`: create the handoff, append the
+normal `FILES_CREATED` and `HANDOFF` events, then use tmux delivery. If
+pane lookup is missing or ambiguous, fall back to normal AICP and ask the
+user to identify the pane.
+
+Exception: tmux high-five smoke tests are transport checks only. Do not
+create AICP files or write `work.log` entries for high-five tests.
+Current-pane naming is also local tmux UI state; do not create AICP files
+or write `work.log` entries for pane naming unless the user explicitly
+asks to record it.
+When naming a pane, store the stable name in `@awm_pane_name` and make
+the border display that value before `#{pane_title}`. Do not rely on
+mutable `#{pane_title}` for stable routing when `@awm_pane_name` exists.
+When parsing pane names from natural language, quoted names win; otherwise
+extract the final explicit name phrase and ask for quotes if ambiguous.
+
 ## Amending a handoff after sending
 
 Don't edit after acknowledgment. Create `handoff_<slug>_v2.<model>.md`
@@ -1009,6 +1081,9 @@ From the next user message onward, on EVERY user turn:
 
 If the user explicitly opts out of logging for a trivial turn ("don't log
 this, just answer X"), respect it — but the default is always log.
+
+tmux high-five smoke tests and current-pane naming are no-log
+transport/UI checks even when the default for ordinary turns is logging.
 
 ---
 

@@ -18,7 +18,7 @@ Using several AI coding agents is powerful, but the context handoff is painful: 
 
 ### Language policy
 
-All operational prompt surfaces installed by `agent-work-mem` are English-only: `prompt.md`, `PROTOCOL.md`, `upgrade.md`, and generated protocol templates. Localized README files are human documentation only and are not copied into `AIMemory/` or loaded as protocol prompts. User-provided text in logs and handoffs is preserved verbatim.
+All operational prompt surfaces installed by `agent-work-mem` are English-only: `prompt.md`, `PROTOCOL.md`, `upgrade.md`, optional `tmux-handoff.md`, and generated protocol templates. Localized README files are human documentation only and are not copied into `AIMemory/` or loaded as protocol prompts. User-provided text in logs and handoffs is preserved verbatim.
 
 ### Install in one prompt
 
@@ -94,6 +94,7 @@ your-project/
     ├── INDEX.md            ← file inventory + topic search index (read FIRST)
     ├── PROJECT_OVERVIEW.md ← onboarding primer for any new LLM (read SECOND)
     ├── PROTOCOL.md         ← the rules (every agent reads this once on bootstrap)
+    ├── tmux-handoff.md     ← optional lazy tmux pane delivery extension (tmux only)
     ├── work.log            ← append-only HOT event log (last ~50 events)
     ├── archive/            ← WARM tier — older events grouped by date
     │   └── work-YYYY-MM-DD.log
@@ -257,6 +258,63 @@ The receiving agent reads `work.log`, finds the open HANDOFF event, opens the ha
 **This is the actual usage pattern.** You don't need to know AICP message types or write the handoff file by hand — natural-language instructions trigger the structured machinery underneath.
 
 See [`examples/handoff_auth-review.claude-opus-4-5.sample.md`](examples/handoff_auth-review.claude-opus-4-5.sample.md) and the matching response for full sample files.
+
+### tmux direct handoff — optional, lazy-loaded
+
+If both agents are running in the same tmux server, you can ask the sender
+to deliver the AICP handoff directly to a named pane:
+
+> "Create the handoff, then deliver it to tmux pane `codex-review`."
+> "When done, send the report handoff back to my source pane."
+
+This still writes the normal `AIMemory/handoff_*.md` file and `work.log`
+events first. tmux is only a local delivery shortcut that pastes an
+agent-facing instruction into the target pane.
+
+The tmux instructions are lazy-loaded: non-tmux sessions do not read or
+install them. Say `tmux handoff on` to make the agent check whether the
+current session is inside tmux and load `tmux-handoff.md` only if that
+check passes. The command is case-insensitive after trimming surrounding
+whitespace. Inside tmux, `prompt.md` may then fetch `tmux-handoff.md`
+into `AIMemory/tmux-handoff.md`; outside tmux it leaves that file absent. A
+receiving pane shows a small ASCII thumb-up when it accepts the handoff
+and again when it completes and sends a `STATUS_REPORT` or
+`REVIEW_RESPONSE` handoff back.
+
+For reliable routing, give panes stable titles:
+
+```bash
+tmux select-pane -T codex-review
+```
+
+You can also ask the current agent to name its own pane:
+
+> "Rename this tmux pane to `codex-review`."
+> "Set the current pane name to `codex-review`."
+
+Inside tmux, the agent should store the stable name in the pane-local
+`@awm_pane_name` option, run `tmux select-pane -T <name>` for compatibility,
+and enable top pane-border titles for the current window. The border uses
+`@awm_pane_name` before falling back to `#{pane_title}`, so shell/editor
+title changes do not replace the displayed AIMemory pane name. This is
+local tmux UI state: it does not create handoff files or write `work.log`
+entries unless you explicitly ask to record it.
+
+English and localized natural-language requests should both work. If the
+name is quoted, the agent uses the quoted text exactly; otherwise it uses
+the final explicit name phrase and asks again if the name is ambiguous.
+
+For the smallest transport test, use the high-five flow:
+
+> "Send a high-five to tmux pane `codex-pane`; return `HIGHFIVE_CONFIRMED` to my source pane."
+
+The sender finds the named pane, pastes a high-five prompt, and asks that
+pane to return the configured confirmation phrase to the source pane. The
+receiver prints the ASCII high-five with `Sent by: <source pane>` below it,
+and the source pane prints the same ASCII with `Sent by: <returning pane>`
+after the return prompt arrives. This smoke test does not create handoff
+files or write `work.log` entries; it only checks tmux pane lookup and
+round-trip prompt delivery.
 
 ### Recovering from session loss (`/compact`, model swap, machine reboot)
 

@@ -23,6 +23,8 @@ layout. The new layout adds:
 - `AIMemory/PROJECT_OVERVIEW.md` — onboarding primer for new sessions/LLMs
 - `AIMemory/archive/` — warm tier (rotated old events)
 - `AIMemory/cold/` — cold tier (period digests, on-demand)
+- Optional `AIMemory/tmux-handoff.md` — lazy tmux pane delivery extension,
+  installed only when the current agent is running inside tmux
 - New rules in `PROTOCOL.md` §7 (tiered storage)
 
 The migration is non-destructive — your existing `work.log` keeps every
@@ -69,6 +71,22 @@ curl -fsSL https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/PRO
 
 If your harness doesn't allow `curl`, use your `web-fetch` tool to load
 the URL above and write the content to `AIMemory/PROTOCOL.md`.
+
+Do not fetch the optional tmux direct handoff extension during a normal
+upgrade just because the shell happens to be inside tmux. Fetch it only
+when the user explicitly asks for tmux direct handoff support, such as
+`tmux handoff on` (case-insensitive after trimming whitespace), and the
+current agent is running inside tmux (`TMUX` is non-empty or
+`tmux display-message -p '#{pane_id}'` works):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/tmux-handoff.md \
+  -o AIMemory/tmux-handoff.md
+```
+
+If not running inside tmux, do not create or read `AIMemory/tmux-handoff.md`.
+It is lazy-loaded only for explicit tmux handoff activation or explicit
+tmux pane handoff requests.
 
 ### Task 3 — Create INDEX.md (with current state reflected)
 

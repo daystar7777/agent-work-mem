@@ -682,6 +682,45 @@ Completed: <short status>. See <deliverable files, if any>.
 
 Unclosed handoffs are like unfinished work — next session should check.
 
+## Optional tmux direct delivery (lazy-loaded)
+
+When and only when the current agent is running inside tmux and the user
+explicitly names a target pane, the sender may deliver the already-created
+AICP handoff directly to that pane.
+
+Do not load tmux instructions during normal sessions. If the user says
+`tmux handoff on` (case-insensitive after trimming whitespace), first
+check whether the current session is inside tmux. If it is not, say that
+tmux handoff is unavailable and do not read, fetch, or create
+`AIMemory/tmux-handoff.md`. If it is inside tmux, read or fetch the tmux
+extension as described below.
+
+If `$TMUX` is set and the user asks for tmux pane delivery,
+`tmux-pane:<name-or-id>`, a tmux high-five smoke test, the configured
+high-five confirmation phrase (`HIGHFIVE_CONFIRMED` by default), or asks
+in English or their own language to name or rename the current pane, read
+`AIMemory/tmux-handoff.md` if it exists. If it does not exist and web
+fetch is available, fetch
+<https://raw.githubusercontent.com/daystar7777/agent-work-mem/main/tmux-handoff.md>
+into `AIMemory/tmux-handoff.md`, then follow it.
+
+The tmux extension is only a delivery mechanism. The source of truth is
+still the handoff file plus `work.log`: create the handoff, append the
+normal `FILES_CREATED` and `HANDOFF` events, then use tmux delivery. If
+pane lookup is missing or ambiguous, fall back to normal AICP and ask the
+user to identify the pane.
+
+Exception: tmux high-five smoke tests are transport checks only. Do not
+create AICP files or write `work.log` entries for high-five tests.
+Current-pane naming is also local tmux UI state; do not create AICP files
+or write `work.log` entries for pane naming unless the user explicitly
+asks to record it.
+When naming a pane, store the stable name in `@awm_pane_name` and make
+the border display that value before `#{pane_title}`. Do not rely on
+mutable `#{pane_title}` for stable routing when `@awm_pane_name` exists.
+When parsing pane names from natural language, quoted names win; otherwise
+extract the final explicit name phrase and ask for quotes if ambiguous.
+
 ## Amending a handoff after sending
 
 Don't edit after acknowledgment. Create `handoff_<slug>_v2.<model>.md`
