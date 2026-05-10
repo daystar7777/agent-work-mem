@@ -620,17 +620,19 @@ must not create or deliver a new `IMPLEMENT` / `FIX` handoff on its own.
 It may recommend follow-up work in its response handoff, but that
 recommendation is not approval to execute it.
 
-## Gemini CLI compatibility mode
+## Gemini CLI manual-only handoff
 
-Some tmux peers can accept pasted prompts but fail after write-oriented
-tool chains. Gemini CLI has shown this failure mode as a Google API
-`INVALID_ARGUMENT` error saying the number of function response parts
-must equal the number of function call parts. Treat that as a harness
-tool-call state error, not as a tmux Enter, routing, or handoff content
-error.
+Gemini CLI targets are excluded from automatic tmux pane handoff. They can
+still receive the durable AICP handoff file, but the source pane must not
+paste, submit, retry, poll, or otherwise automate delivery into the Gemini
+pane. Gemini CLI has repeatedly shown pane/tool-call state failures, such
+as a Google API `INVALID_ARGUMENT` error saying the number of function
+response parts must equal the number of function call parts. Treat that as
+a Gemini CLI harness fragility, not as a tmux Enter, routing, or handoff
+content error.
 
-Use this compatibility mode only when the target is Gemini CLI, determined
-by one of these signals:
+Use this manual-only rule only when the target is Gemini CLI, determined by
+one of these signals:
 
 - the target pane has `@awm_agent_kind=gemini-cli`;
 - the pasted/user-visible target explicitly says `gemini-cli`;
@@ -638,50 +640,35 @@ by one of these signals:
   `INVALID_ARGUMENT` function-response mismatch; or
 - the user asks to avoid the repeated Gemini CLI error for that pane.
 
-Do not apply inline compatibility mode merely because a pane is named
+Do not apply manual-only handling merely because a pane is named
 `gemini` if `@awm_agent_kind` says it is not Gemini CLI. If no
 `@awm_agent_kind` is recorded and the pane name is exactly `gemini`, it is
 acceptable to infer `gemini-cli` only as a conservative fallback after
 checking the current pane context or recent work.log history.
 
-Compatibility mode is only for non-mutating roles: `REVIEW`, `INSPECT`,
-`VERIFY`, and status-only `GENERAL_STATUS`. Do not send `IMPLEMENT`,
-`FIX`, or other file-mutating work to a tool-call fragile receiver unless
-the user explicitly accepts the risk.
+Manual-only handoff is allowed for any receiver role because the source is
+not asking Gemini CLI to perform protocol writes or tmux delivery
+automatically. The user is responsible for opening or pasting the handoff
+into Gemini and deciding how to use Gemini's answer.
 
-In compatibility mode:
+In Gemini CLI manual-only handoff:
 
 1. The source pane still creates the normal AICP handoff file and appends
    `FILES_CREATED` and `HANDOFF`.
-2. The source pane prepares an inline receiver packet in the pasted prompt.
-   Include the exact task, role, expected output format, and any content
-   that the fragile receiver would otherwise need to write into files.
-   For review-style work, include key file excerpts or summaries,
-   validation results, and the specific questions to answer. The receiver
-   may still read files or run read-only inspection commands if needed,
-   but the prompt should make routine file discovery unnecessary.
-3. The pasted prompt must say `Gemini CLI compatibility mode: do not run
-   write commands, do not edit files, do not append work.log, do not
-   create handoff/report files, and do not tmux-deliver a returned
-   prompt. Read-only file inspection is allowed if needed. Provide the
-   exact content you want written as inline text in this pane.`
-4. The receiver produces a plain text inline response. For reviews, use
-   `REVIEW_RESPONSE_INLINE` with judgment, findings, evidence reviewed,
-   evidence limitations, residual risk, and next action. For status-only
-   outputs, use the requested inline status format.
-5. If the receiver wants a file, log entry, or handoff/report content to
-   be written, it must include the exact proposed content in fenced blocks
-   or clearly labeled sections. The source pane is responsible for
-   applying that content to disk after checking it.
-6. The source pane transcribes the inline response into the normal
-   `AIMemory/handoff_<topic>-report.<receiver>.md`, appends the normal
-   `FILES_CREATED`, `HANDOFF`, `HANDOFF_CLOSED`, and source judgment
-   `NOTE`, and records that the receiver response was source-relayed due
-   to Gemini CLI compatibility mode.
-7. Do not ask the fragile receiver to verify delivery with tmux capture,
-   append `HANDOFF_RECEIVED`, create the report file, close the handoff,
-   or tmux-deliver a returned prompt. Those actions require the exact
-   write-oriented tool-call path that is failing.
+2. The source pane must not create a tmux-pasted receiver prompt, must not
+   call `tmux send-keys`, must not send Enter to the target pane, and must
+   not run delivery retries or peer-pane polling for that target.
+3. The source pane tells the user that Gemini automatic pane handoff is
+   disabled because Gemini CLI pane/tool-call automation is unreliable.
+   Include the exact handoff file path and instruct the user to open or
+   paste that handoff manually in Gemini.
+4. Append a `NOTE` to `AIMemory/work.log` recording that the Gemini handoff
+   file was created but not auto-delivered because Gemini is manual-only.
+5. Do not ask Gemini CLI to verify delivery with tmux capture, append
+   `HANDOFF_RECEIVED`, create the report file, close the handoff, or
+   tmux-deliver a returned prompt. If Gemini returns useful text manually,
+   the source pane may transcribe or review it only after the user provides
+   that content.
 
 ## Sending flow
 
@@ -700,11 +687,10 @@ In compatibility mode:
    previously verified cached pane id first. Fall back to the full
    pane-name rules only if the cached route is missing, stale, mismatched,
    or delivery fails.
-6. If the resolved target is in **Gemini CLI compatibility mode**, follow
-   that section exactly instead of the normal receiver prompt below.
-   Produce a self-contained inline review prompt, allow read-only
-   inspection if needed, and do not ask Gemini CLI to write files, append
-   logs, create handoffs, or run tmux delivery.
+6. If the resolved target is in **Gemini CLI manual-only handoff**, follow
+   that section exactly and stop before the normal receiver prompt below.
+   Do not paste, submit, retry, or poll the Gemini pane. Tell the user the
+   handoff file was created and must be handled manually in Gemini.
 7. Create a local prompt file under ignored local state. Inject the exact
    handoff file path. Do not ask the receiver to search `INDEX.md`,
    `work.log`, or the filesystem to discover which handoff to open:

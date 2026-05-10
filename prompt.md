@@ -901,9 +901,14 @@ into `AIMemory/tmux-handoff.md`, then follow it.
 
 The tmux extension is only a delivery mechanism. The source of truth is
 still the handoff file plus `work.log`: create the handoff, append the
-normal `FILES_CREATED` and `HANDOFF` events, then use tmux delivery. If
-pane lookup is missing or ambiguous, fall back to normal AICP and ask the
-user to identify the pane.
+normal `FILES_CREATED` and `HANDOFF` events, then use tmux delivery.
+Exception: Gemini/Gemini CLI targets are manual-only. If the resolved
+target is Gemini, create the handoff file and log it, but do not paste,
+submit, retry, or poll the Gemini pane. Tell the user Gemini automatic
+pane handoff is disabled because Gemini CLI pane/tool-call automation is
+unreliable, provide the exact handoff file path, and instruct the user to
+open or paste it manually in Gemini. If pane lookup is missing or
+ambiguous, fall back to normal AICP and ask the user to identify the pane.
 
 When the user asks for tmux delivery, also infer what the receiver should
 do after receiving the handoff from English or any user-language natural

@@ -351,6 +351,11 @@ This still writes the normal `AIMemory/handoff_*.md` file and `work.log`
 events first. tmux is only a local delivery shortcut that pastes an
 agent-facing instruction into the target pane.
 
+Gemini/Gemini CLI is the exception: Gemini pane handoff is manual-only.
+The sender still creates the AICP handoff file and logs it, but it does
+not paste or submit anything into the Gemini pane. The user should open or
+paste the generated handoff file in Gemini manually.
+
 The pasted instruction changes with the work you ask the target pane to
 do. For example:
 
