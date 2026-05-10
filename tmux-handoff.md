@@ -94,7 +94,8 @@ When the user says `tmux handoff off`:
 Prefer stable AIMemory pane names. The user can set one with:
 
 ```bash
-tmux select-pane -T codex-review
+pane_id="${TMUX_PANE:-$(tmux display-message -p '#{pane_id}')}"
+tmux select-pane -t "$pane_id" -T codex-review
 ```
 
 ### Rename the current pane
@@ -118,33 +119,40 @@ Flow:
    phrasing. If the request contains a quoted name, use the quoted text
    exactly. Otherwise, use the final explicit name phrase. If the name is
    ambiguous, ask the user to repeat it in quotes.
-3. Rename the current pane and store the stable AIMemory pane name:
+3. Resolve the pane id for this agent process before renaming. Prefer
+   `$TMUX_PANE`; if it is empty, ask tmux for the current pane. Do not use
+   a bare `tmux display-message` result as authority when `$TMUX_PANE`
+   is set, because the active tmux client can be focused on a different
+   pane than the agent process. Every rename command below must target
+   the resolved `pane_id` explicitly.
+4. Rename that resolved pane and store the stable AIMemory pane name:
 
    ```bash
    name='<pane-name>'
-   pane_id="$(tmux display-message -p '#{pane_id}')"
+   pane_id="${TMUX_PANE:-$(tmux display-message -p '#{pane_id}')}"
+   tmux display-message -t "$pane_id" -p '#{pane_id}	#{session_name}:#{window_index}.#{pane_index}	#{pane_title}'
    tmux set-option -p -t "$pane_id" @awm_pane_name "$name"
-   tmux select-pane -T "$name"
+   tmux select-pane -t "$pane_id" -T "$name"
    tmux set-option -p -t "$pane_id" allow-rename off 2>/dev/null || true
    ```
 
    `allow-rename off` is defensive for tmux/window rename escape
    sequences. The stable pane identity is still `@awm_pane_name`.
 
-4. Ensure pane titles are visible in the top border of the current tmux
+5. Ensure pane titles are visible in the top border of the current tmux
    window and prefer the stable AIMemory pane name over mutable
    `#{pane_title}`:
 
    ```bash
-   window_id="$(tmux display-message -p '#{window_id}')"
+   window_id="$(tmux display-message -t "$pane_id" -p '#{window_id}')"
    tmux set-window-option -t "$window_id" pane-border-status top
    tmux set-window-option -t "$window_id" pane-border-format '#[bold] #{?@awm_pane_name,#{@awm_pane_name},#{pane_title}}#{?@awm_agent_kind, (#{@awm_agent_kind}),} #[default]'
    ```
 
-5. Confirm with the current pane id and stable name:
+6. Confirm with the resolved pane id and stable name:
 
    ```bash
-   tmux display-message -p 'Pane #{pane_id} named #{?@awm_pane_name,#{@awm_pane_name},#{pane_title}}'
+   tmux display-message -t "$pane_id" -p 'Pane #{pane_id} named #{?@awm_pane_name,#{@awm_pane_name},#{pane_title}}'
    ```
 
 Stable pane names use the pane-local tmux user option `@awm_pane_name`.
@@ -191,7 +199,7 @@ Flow:
 3. Store the pane-local metadata:
 
    ```bash
-   pane_id="$(tmux display-message -p '#{pane_id}')"
+   pane_id="${TMUX_PANE:-$(tmux display-message -p '#{pane_id}')}"
    tmux set-option -p -t "$pane_id" @awm_agent_kind '<agent-kind>'
    ```
 

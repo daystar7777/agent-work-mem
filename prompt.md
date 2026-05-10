@@ -925,9 +925,15 @@ create AICP files or write `work.log` entries for high-five tests.
 Current-pane naming is also local tmux UI state; do not create AICP files
 or write `work.log` entries for pane naming unless the user explicitly
 asks to record it.
-When naming a pane, store the stable name in `@awm_pane_name` and make
-the border display that value before `#{pane_title}`. Do not rely on
-mutable `#{pane_title}` for stable routing when `@awm_pane_name` exists.
+When naming a pane, first resolve this agent process's own pane id,
+preferring `$TMUX_PANE` when it is set. Do not rely on a bare
+`tmux display-message -p '#{pane_id}'` result as identity authority when
+`$TMUX_PANE` exists, because the active tmux client can be focused on a
+different pane than the agent process. Then target every rename command
+explicitly at that resolved pane id, store the stable name in
+`@awm_pane_name`, and make the border display that value before
+`#{pane_title}`. Do not rely on mutable `#{pane_title}` for stable routing
+when `@awm_pane_name` exists.
 When parsing pane names from natural language, quoted names win; otherwise
 extract the final explicit name phrase and ask for quotes if ambiguous.
 
