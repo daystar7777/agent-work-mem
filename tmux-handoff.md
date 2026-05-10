@@ -436,6 +436,12 @@ High-five sender: <target-pane-name-or-id>
 
 Source pane: <source-pane-id>
 Source pane name: <source-pane-name>
+
+After pasting the return prompt, also show a tmux status-line notice on
+the source pane so the human can see the confirmation even if the source
+agent TUI has not redrawn its input buffer yet:
+
+tmux display-message -t <source-pane-id> 'HIGHFIVE_CONFIRMED from <target-pane-name-or-id>'
 EOF
 )"
    ```
@@ -447,6 +453,12 @@ EOF
    tmux send-keys -t '<target-pane>' Enter
    tmux delete-buffer -b awm-highfive-<source-pane-id> 2>/dev/null || true
    ```
+6. Stop after the paste and Enter. Do not poll either pane with
+   `tmux capture-pane`, do not inspect the source pane for the returned
+   prompt, and do not send a follow-up "please return
+   HIGHFIVE_CONFIRMED" prompt. Report only that the high-five prompt was
+   sent to the target pane. The user or a later inbound prompt will tell
+   the source pane whether the return arrived.
 
 Target pane behavior:
 
@@ -461,12 +473,41 @@ Target pane behavior:
    press Enter. Use a target-pane-specific temporary buffer such as
    `awm-highfive-<target-pane-id>` for this return delivery. Do not use
    localized variants such as "하이파이브 응답".
+5. Also run a best-effort tmux status-line notice against the source pane:
+
+   ```bash
+   tmux display-message -t '<source-pane>' 'HIGHFIVE_CONFIRMED from <target-pane-name-or-id>' 2>/dev/null || true
+   ```
+
+   This is only a visual hint for the human. It does not replace the
+   returned prompt and it must not be retried in a loop.
+6. Return the confirmation at most once for each received high-five
+   prompt. If the source pane later asks for the same confirmation again
+   because it failed to observe the first return, do not paste
+   `HIGHFIVE_CONFIRMED` a second time unless the human user explicitly
+   asks for a new high-five test. Instead, state that the confirmation was
+   already sent once and include the source pane id and target pane id.
 
 Source pane behavior:
 
 When the source pane receives `HIGHFIVE_CONFIRMED`, print the high-five
 ASCII art and a `Sent by: <High-five sender>` line directly below it. Do
 not create AICP files or write log entries for this smoke test.
+
+Do not proactively check for the confirmation with `tmux capture-pane`.
+If the source pane naturally receives a visible or submitted
+`HIGHFIVE_CONFIRMED` prompt, handle it then. If the user asks whether a
+return arrived, inspect once and report exactly what is visible. Never ask
+the target pane to return the same high-five again unless the human user
+explicitly requests a new high-five test.
+
+Some terminal UIs do not redraw pasted inbound text while the source
+agent is busy or while the text is sitting in the input buffer. In that
+case the returned prompt may become visible only after the user presses
+Enter, the current agent turn finishes, or the UI redraws. Treat this as a
+terminal/TUI limitation, not as a reason to resend the confirmation. The
+receiver-side `tmux display-message` notice is the preferred immediate
+visibility mechanism because it is tmux UI state, not source-agent input.
 
 ## Receiver roles
 

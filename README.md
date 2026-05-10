@@ -418,7 +418,12 @@ receiver prints the ASCII high-five with `Sent by: <source pane>` below it,
 and the source pane prints the same ASCII with `Sent by: <returning pane>`
 after the return prompt arrives. This smoke test does not create handoff
 files or write `work.log` entries; it only checks tmux pane lookup and
-round-trip prompt delivery.
+round-trip prompt delivery. After sending, the source pane does not poll
+either pane or ask the receiver to send `HIGHFIVE_CONFIRMED` again. Some
+terminal UIs only show the returned prompt after the current turn ends,
+the UI redraws, or the user presses Enter, so the receiver also emits a
+best-effort tmux status-line notice on the source pane for immediate
+human-visible confirmation.
 
 ### Recovering from session loss (`/compact`, model swap, machine reboot)
 

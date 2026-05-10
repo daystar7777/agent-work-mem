@@ -149,7 +149,8 @@ pane 名が正しく届くか確認したいときは、high-five テストを�
 Send a high-five to tmux pane claude; return HIGHFIVE_CONFIRMED to my source pane.
 ```
 
-このテストは tmux の配送だけを確認します。handoff ファイルは作らず、`work.log` も変更しません。
+このテストは tmux の配送だけを確認します。handoff ファイルは作らず、`work.log` も変更しません。送信側は送信後に pane を自動確認せず、
+`HIGHFIVE_CONFIRMED` の再送も依頼しません。一部の terminal UI では、現在のターンが終わる、ユーザーが Enter を押す、または画面が再描画されるまで返答プロンプトが見えないことがあるため、receiver は source pane に tmux status-line 通知も表示します。
 
 ### 7. tmux handoff を無効にする
 

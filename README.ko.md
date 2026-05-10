@@ -151,7 +151,8 @@ pane 이름이 맞는지 먼저 확인하고 싶으면 high-five 테스트를 �
 tmux pane claude에 high-five를 보내고, 내 source pane으로 HIGHFIVE_CONFIRMED를 돌려줘.
 ```
 
-이 테스트는 tmux 전달만 확인합니다. handoff 파일을 만들거나 `work.log`를 수정하지 않습니다.
+이 테스트는 tmux 전달만 확인합니다. handoff 파일을 만들거나 `work.log`를 수정하지 않습니다. 보낸 쪽은 전송 뒤 두 pane을 자동 확인하지 않고,
+`HIGHFIVE_CONFIRMED`를 다시 보내 달라고 재요청하지 않습니다. 일부 터미널 UI에서는 현재 턴이 끝나거나 사용자가 Enter를 누르거나 화면이 다시 그려질 때까지 반환 프롬프트가 보이지 않을 수 있으므로, receiver는 source pane에 tmux status-line 알림도 함께 띄웁니다.
 
 ### 7. tmux handoff 끄기
 
