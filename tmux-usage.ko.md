@@ -194,7 +194,7 @@ tmux pane claude에 high-five를 보내고, 내 source pane으로 HIGHFIVE_CONFI
 3. `AIMemory/work.log`에 handoff 기록을 남깁니다.
 4. tmux를 통해 Claude pane에 handoff 안내 프롬프트를 붙여 넣습니다.
 
-Claude는 handoff를 읽고 리뷰한 뒤, 다시 결과 handoff를 남깁니다.
+Codex는 전달 프롬프트를 한 번만 붙여 넣고 제출합니다. 전달 여부를 확인하려고 Claude pane을 자동으로 들여다보거나 Enter를 추가로 보내지 않습니다. Claude는 handoff를 읽고 리뷰한 뒤, 다시 결과 handoff를 남기고 source pane에 한 번만 반환 프롬프트를 보냅니다. 즉시 보이도록 tmux status-line 알림도 함께 띄웁니다.
 
 ---
 
@@ -283,9 +283,9 @@ tmux select-pane -T claude
 
 ### pane은 받았는데 작업을 시작하지 않습니다
 
-가끔 프롬프트가 붙여 넣어졌지만 Enter가 제대로 안 들어간 것처럼 보일 수 있습니다. 이 경우 target pane에서 Enter를 한 번 눌러 보세요.
+가끔 프롬프트가 붙여 넣어졌지만 TUI가 아직 다시 그려지지 않아서 보이지 않을 수 있습니다. 자동 재전송이나 검증용 Enter는 중복 처리를 만들 수 있으므로 기본 흐름에서는 하지 않습니다.
 
-그래도 안 되면 `AIMemory/work.log`와 최신 `AIMemory/handoff_*.md`를 직접 열어 이어받으면 됩니다. tmux가 실패해도 기록은 남아 있어야 합니다.
+필요하면 사용자가 명시적으로 해당 pane에서 Enter를 누르거나, `AIMemory/work.log`와 최신 `AIMemory/handoff_*.md`를 직접 열어 이어받으면 됩니다. tmux가 실패해도 기록은 남아 있어야 합니다.
 
 ### 기록이 남지 않았습니다
 

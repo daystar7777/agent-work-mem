@@ -141,7 +141,7 @@ Claude 리뷰가 돌아오면 다시 Codex에게:
 Claude 리뷰를 반영하고, 구현은 tmux pane opencode로 넘겨줘.
 ```
 
-이때 tmux는 단지 전달 채널입니다. 실제 기록은 항상 `AIMemory/work.log`와 `AIMemory/handoff_*.md`에 남습니다. 그래서 pane이 닫히거나 세션이 바뀌어도 handoff 기록은 프로젝트 안에 남아 있습니다.
+이때 tmux는 단지 전달 채널입니다. 실제 기록은 항상 `AIMemory/work.log`와 `AIMemory/handoff_*.md`에 남습니다. 그래서 pane이 닫히거나 세션이 바뀌어도 handoff 기록은 프로젝트 안에 남아 있습니다. tmux 전달은 각 프롬프트를 한 번만 붙여 넣고 제출하며, 보낸 쪽이나 받은 쪽이 peer pane을 자동 확인하거나 검증용 Enter를 추가로 보내지 않습니다. 즉시 보이도록 target/source pane에는 tmux status-line 알림도 함께 띄웁니다.
 
 ### 6. 연결 테스트
 

@@ -376,7 +376,12 @@ whitespace. Inside tmux, `prompt.md` may then fetch `tmux-handoff.md`
 into `AIMemory/tmux-handoff.md`; outside tmux it leaves that file absent. A
 receiving pane shows a small ASCII thumb-up when it accepts the handoff
 and again when it completes and sends a `STATUS_REPORT` or
-`REVIEW_RESPONSE` handoff back.
+`REVIEW_RESPONSE` handoff back. tmux delivery pastes and submits each
+prompt once; the sender and receiver do not poll peer panes or send extra
+Enter keys as a normal verification step. Durable state lives in
+`AIMemory/work.log` and the handoff files. For immediate human visibility,
+delivery and return flows also emit best-effort tmux status-line notices
+on the target/source panes.
 
 Say `tmux handoff off` to disable tmux handoff for the current agent
 session. After that, the agent treats any loaded tmux handoff instructions

@@ -762,28 +762,31 @@ pane if it can be resolved safely.
 EOF
    ```
 
-8. Paste it into the target pane and press Enter. This injection plus
-   Enter is mandatory: after creating the AICP handoff, the sender must
-   actively deliver the prompt to the target pane so the receiver starts
-   the assigned role without requiring the user to repeat the command. If
-   paste or send fails against a cached pane id, remap the target using
-   the full pane-name rules, refresh the route cache, and retry once. Use
-   a source-pane-specific buffer name based on the pane id resolved in
-   step 4:
+8. Paste it into the target pane and press Enter exactly once. This
+   injection plus Enter is mandatory: after creating the AICP handoff,
+   the sender must actively deliver the prompt to the target pane so the
+   receiver starts the assigned role without requiring the user to repeat
+   the command. If paste or send fails against a cached pane id, remap the
+   target using the full pane-name rules, refresh the route cache, and
+   retry the paste once. Use a source-pane-specific buffer name based on
+   the pane id resolved in step 4:
 
    ```bash
    tmux load-buffer -b awm-handoff-<source-pane-id> .agent-work-mem/tmux-handoff-message.txt
    tmux paste-buffer -t '<target-pane>' -b awm-handoff-<source-pane-id>
    tmux send-keys -t '<target-pane>' Enter
    tmux delete-buffer -b awm-handoff-<source-pane-id> 2>/dev/null || true
+   tmux display-message -t '<target-pane>' 'AIMemory handoff delivered from <source-pane-name-or-id>' 2>/dev/null || true
    ```
 
-9. Verify that the receiver actually started. Check for a new
-   `HANDOFF_RECEIVED` entry for the exact handoff file after a short
-   delay. If it is missing, send one submit-only Enter to the same target
-   pane and check once more. If it is still missing, append a
-   `NEEDS_MANUAL_SUBMIT` note with the target pane and handoff path; do
-   not keep pressing Enter in a loop.
+9. Stop after delivery. Do not poll the target pane, do not inspect it
+   with `tmux capture-pane`, and do not send a submit-only Enter as a
+   verification mechanism. The receiver's durable acknowledgement is the
+   `HANDOFF_RECEIVED` event it appends when it processes the prompt. If
+   the user later asks whether the receiver started, inspect
+   `AIMemory/work.log` once and report the evidence; do not prod the
+   target pane unless the human explicitly requests a redelivery or a
+   manual submit.
 10. Append a `NOTE` to `work.log` saying the AICP handoff was also
    delivered to `tmux-pane:<target-pane>`.
 11. When the peer returns a handoff to this pane, run **Source follow-up
@@ -831,10 +834,10 @@ When a pane receives a tmux handoff prompt:
 8. Append `FILES_CREATED`, `HANDOFF`, and `HANDOFF_CLOSED`.
 9. Show the thumb-up ASCII again.
 10. If still inside tmux and the source pane resolves exactly, paste a
-   short report prompt back to the source pane and press Enter. This
-   return injection plus Enter is mandatory: the source pane must start
-   Source follow-up flow without requiring the user to manually submit the
-   returned prompt.
+   short report prompt back to the source pane and press Enter exactly
+   once. This return injection plus Enter is the normal delivery path for
+   Source follow-up flow, but the receiver must not verify it by poking
+   the source pane afterward.
 
    ```text
        __
@@ -875,20 +878,27 @@ and next action. The original handoff was closed in AIMemory/work.log.
    tmux paste-buffer -t '<source-pane>' -b awm-handoff-return-<receiver-pane-id>
    tmux send-keys -t '<source-pane>' Enter
    tmux delete-buffer -b awm-handoff-return-<receiver-pane-id> 2>/dev/null || true
+   tmux display-message -t '<source-pane>' 'AIMemory handoff report returned from <returning-pane-name-or-id>' 2>/dev/null || true
    ```
 
    The full returned prompt may be pasted at most once for a given
    returned handoff path. Never re-paste the same returned prompt as a
-   verification or retry mechanism. After a short delay, verify that the
-   source pane started Source follow-up only by checking for the expected
-   judgment `NOTE` or visible progress in `AIMemory/work.log`. Do not run
-   tmux capture or other interactive diagnostics against the source pane
-   as part of normal return delivery. If no progress is visible, send one
-   submit-only Enter to the same source pane and check `work.log` once
-   more. If it still does not start, append `NEEDS_MANUAL_SUBMIT` with
-   the source pane and returned handoff path; do not keep pressing Enter
-   and do not paste the full returned prompt again unless the user
-   explicitly requests a new full redelivery.
+   verification or retry mechanism. Do not run tmux capture or other
+   interactive diagnostics against the source pane as part of normal
+   return delivery, and do not send a submit-only Enter to the source
+   pane as a verification mechanism. If the source pane does not visibly
+   start Source follow-up, rely on the returned handoff file and
+   `AIMemory/work.log` as the durable evidence. Only inspect once or
+   redeliver if the human explicitly asks.
+
+   Some terminal UIs do not redraw pasted inbound text while the source
+   agent is busy or while the text is sitting in the input buffer. In
+   that case the returned prompt may become visible only after the user
+   presses Enter, the current agent turn finishes, or the UI redraws.
+   Treat this as a terminal/TUI limitation, not as a reason to send
+   another Enter or paste the returned prompt again. The receiver-side
+   `tmux display-message` notice is the preferred immediate visibility
+   mechanism because it is tmux UI state, not source-agent input.
 
 If the source pane cannot be resolved, stop after the normal AICP report.
 The sender will still see it through `INDEX.md` and `work.log`.

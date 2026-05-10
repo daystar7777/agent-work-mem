@@ -139,7 +139,7 @@ Claude のレビューが戻ったら、Codex にこう伝えます。
 Claude のレビューを反映し、実装は tmux pane opencode に渡してください。
 ```
 
-tmux はあくまで配送チャネルです。真実の記録は常に `AIMemory/work.log` と `AIMemory/handoff_*.md` に残ります。そのため pane が閉じても、セッションやモデルが変わっても、handoff の履歴はプロジェクト内に残ります。
+tmux はあくまで配送チャネルです。真実の記録は常に `AIMemory/work.log` と `AIMemory/handoff_*.md` に残ります。そのため pane が閉じても、セッションやモデルが変わっても、handoff の履歴はプロジェクト内に残ります。tmux 配送は各プロンプトを一度だけ貼り付けて送信し、送信側や受信側が peer pane を自動確認したり検証用の Enter を追加送信したりしません。すぐ人間に見えるように、target/source pane には tmux status-line 通知も表示します。
 
 ### 6. 接続テスト
 
