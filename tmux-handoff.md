@@ -139,15 +139,29 @@ Flow:
    `allow-rename off` is defensive for tmux/window rename escape
    sequences. The stable pane identity is still `@awm_pane_name`.
 
-5. Ensure pane titles are visible in the top border of the current tmux
-   window and prefer the stable AIMemory pane name over mutable
-   `#{pane_title}`:
+5. Make the rename visible in the top border. This step is **required**,
+   not optional cosmetics. Agent CLIs such as Claude Code, Codex CLI, and
+   OpenCode continuously rewrite `#{pane_title}` via OSC terminal title
+   escape sequences (spinner glyphs, current task labels, `Ready (...)`
+   states). Without this step the border will display the agent's
+   transient status text instead of the stable routing name, and the
+   rename will appear to revert within seconds.
+
+   Set the window's `pane-border-format` to prefer `@awm_pane_name` over
+   `#{pane_title}` so the stable name wins:
 
    ```bash
    window_id="$(tmux display-message -t "$pane_id" -p '#{window_id}')"
    tmux set-window-option -t "$window_id" pane-border-status top
    tmux set-window-option -t "$window_id" pane-border-format '#[bold] #{?@awm_pane_name,#{@awm_pane_name},#{pane_title}}#{?@awm_agent_kind, (#{@awm_agent_kind}),} #[default]'
    ```
+
+   This is a window-level option, so a single call covers every pane in
+   the current window. Re-run it whenever a renamed pane lands in a
+   window whose border format does not yet consult `@awm_pane_name`, for
+   example after a fresh tmux server start, after a layout reset, or
+   after the window was created by a startup script that hard-coded
+   `pane-border-format '#{pane_title}'`.
 
 6. Confirm with the resolved pane id and stable name:
 
@@ -174,6 +188,33 @@ Discover panes with:
 ```bash
 tmux list-panes -a -F '#{pane_id}	#{session_name}:#{window_index}.#{pane_index}	#{@awm_pane_name}	#{@awm_agent_kind}	#{pane_title}	#{window_name}	#{pane_current_command}'
 ```
+
+### Troubleshooting: renamed label reverts to spinner or status text
+
+Symptom: after a successful rename, the pane border briefly shows the
+new routing name and then visibly reverts within seconds to the agent's
+spinner glyph, current-task phrase, or `Ready (...)` text.
+
+Cause: the window's `pane-border-format` is still the default
+`#{pane_title}` (or a prior layout's setting that does not consult
+`@awm_pane_name`), so as soon as the agent CLI emits its next OSC title
+escape, the border re-renders with that transient title.
+
+`@awm_pane_name` itself is unaffected — it is a tmux user option, not a
+terminal title — but the border format must be told to read from it.
+
+Fix: re-run step 4 of the rename flow against the affected window.
+Verify with:
+
+```bash
+tmux show-window-option -t "$window_id" pane-border-format
+tmux list-panes -t "$window_id" -F '#{pane_id}	awm=#{@awm_pane_name}	kind=#{@awm_agent_kind}	title=#{pane_title}'
+```
+
+The window option should reference `@awm_pane_name` ahead of
+`#{pane_title}`. The per-pane listing should show the stable routing
+name in `awm=`, with the mutable `title=` field free to drift as the
+agent CLI updates its status.
 
 ### Record agent kind
 
